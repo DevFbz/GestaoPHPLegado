@@ -81,7 +81,7 @@ expectContains('app/Support/LookupRegistry.php', "'locations'", 'Cadastro de loc
 expectContains('app/Support/LookupRegistry.php', "'suppliers'", 'Cadastro de fornecedores está registrado');
 expectContains('resources/views/pages/stock/_form.php', 'data-can-lookups', 'Entrada não consulta cadastros sem permissão');
 expectContains('app/Support/Installer.php', "'stock.entry'", 'Perfil CD recebe permissão de entrada na atualização');
-expectContains('app/Support/DemoSqliteStore.php', "'homolog-blank-v2'", 'Homologação usa marcador de limpeza zerada v2');
+expectContains('app/Support/DemoSqliteStore.php', "'homolog-blank-v3'", 'Homologação usa marcador de limpeza zerada v3');
 expectContains('app/Support/VercelJsonStore.php', 'Authorization: Bearer ', 'Snapshots JSON autenticam o Blob com Bearer token');
 expectContains('app/Support/Installer.php', 'resetVercelDemoToBlank', 'Homologação limpa dados operacionais');
 expectNotContains('app/Support/Installer.php', 'DemoSeeder::runCatalogs($noop)', 'Homologação não recria catálogos nem brindes fictícios');
