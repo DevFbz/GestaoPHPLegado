@@ -294,6 +294,7 @@ final class Installer
         $password = (string) (getenv('DEMO_PASSWORD') ?: 'Demo@123');
         $hash = password_hash($password, PASSWORD_DEFAULT);
         $accounts = [
+            ['Administrador', 'admin@brindes.local', 1],
             ['Gestor Comercial', 'gestor@brindes.local', 2],
             ['Operação CD', 'operacao@brindes.local', 3],
             ['Solicitante Trade', 'solicitante@brindes.local', 4],
