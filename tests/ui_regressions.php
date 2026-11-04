@@ -89,7 +89,10 @@ expectContains('app/Support/Installer.php', "Db::pdo()->exec('PRAGMA foreign_key
 expectContains('app/Support/Installer.php', "Db::pdo()->exec('PRAGMA foreign_keys = ON')", 'Reset SQLite reativa FKs após a limpeza');
 expectContains('app/bootstrap.php', 'date_default_timezone_set((string) Config::get', 'Fuso é aplicado antes da criação da base demo');
 expectContains('app/bootstrap.php', "json-runtime-v1.sqlite", 'SQLite é apenas cache efêmero do snapshot JSON');
-expectContains('app/bootstrap.php', 'JsonDatabase::restoreFromBlob', 'Runtime restaura o snapshot JSON antes de servir a requisição');
+expectContains('app/bootstrap.php', '$run(static fn () => \\App\\Support\\Installer::ensureVercelDemo());', 'Bootstrap normaliza os dados após restaurar o snapshot');
+expectContains('app/routes.php', '/api/admin/reset-data', 'Admin possui endpoint protegido para zerar os dados');
+expectContains('app/Controllers/SettingsController.php', 'resetData', 'Backend possui ação administrativa para zerar dados');
+expectContains('resources/views/pages/settings/index.php', 'Zerar todos os dados', 'Configurações exibem botão de limpeza somente ao administrador');
 expectContains('public/sw.js', "const VERSION = 'gestao-brindes-v15'", 'Cache de assets usa a versão atual do service worker');
 expectContains('public/sw.js', "fetch(request, { cache: 'no-store' })", 'APIs não usam snapshots antigos');
 expectContains('public/sw.js', "'/assets/js/state-sync.js'", 'Cache inclui sincronização entre abas');

@@ -239,10 +239,10 @@ final class Installer
      * Clears only the operational/demo domain while preserving system access.
      * A sequence marker makes the reset idempotent across warm Vercel requests.
      */
-    private static function resetVercelDemoToBlank(): void
+    public static function resetVercelDemoToBlank(bool $force = false): void
     {
         $marker = \App\Support\DemoSqliteStore::datasetMarker();
-        if ((string) Db::value(
+        if (!$force && (string) Db::value(
             'SELECT last_value FROM sequences WHERE name = ? AND period = ?',
             ['__demo_reset__', $marker]
         ) === '1') {

@@ -53,6 +53,7 @@ return static function (Router $r): void {
     $r->delete('/api/settings/logo', [SettingsController::class, 'deleteLogo'], ['perm' => 'settings.manage']);
     $r->post('/api/settings/test-email', [SettingsController::class, 'testEmail'], ['perm' => 'settings.manage']);
     $r->get('/api/admin/backup', [SettingsController::class, 'backup'], ['perm' => 'settings.manage']);
+    $r->post('/api/admin/reset-data', [SettingsController::class, 'resetData'], ['perm' => 'settings.manage']);
 
     // --- Lecom --------------------------------------------------------
     $r->post('/api/lecom/process/start', [LecomController::class, 'start'], ['perm' => 'requests.create', 'idempotent' => true]);

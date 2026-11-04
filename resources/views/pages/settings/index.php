@@ -74,6 +74,14 @@
   <button class="btn btn-primary" @click="save">Salvar</button>
   <button class="btn btn-outline-secondary" @click="testMail">Testar e-mail</button>
   <a class="btn btn-outline-secondary" :href="Api.url('/api/admin/backup')">Baixar backup do banco</a>
+  <?php if (\App\Core\Auth::isAdmin()): ?>
+    <hr>
+    <div class="alert alert-danger mt-3">
+      <strong>Zerar ambiente</strong>
+      <p class="mb-2">Apaga brindes, estoque, movimentações, solicitações, eventos e cadastros operacionais. As contas de acesso e permissões são preservadas.</p>
+      <button class="btn btn-danger" @click="resetData">Zerar todos os dados</button>
+    </div>
+  <?php endif; ?>
 </div>
 <?php
 $content = ob_get_clean();
@@ -132,6 +140,14 @@ function settingsPage() {
         version: Number(this.f.lecom_process_version) || 10,
         language: 'pt_BR'
       }, null, 2);
+    },
+    async resetData() {
+      if (!confirm('Tem certeza? Todos os dados operacionais serão apagados definitivamente.')) return;
+      try {
+        const { data } = await Api.post('/api/admin/reset-data');
+        UI.toast(data.message, 'ok');
+        setTimeout(() => location.reload(), 500);
+      } catch (e) { UI.toast(e.message, 'err'); }
     },
     async testMail() {
       try { const { data } = await Api.post('/api/settings/test-email'); UI.toast(data.message, 'ok'); }

@@ -72,6 +72,9 @@ if (getenv('VERCEL')) {
     };
     $run(static fn () => \App\Support\Installer::ensureVercelDemo());
     $restored = \App\Support\JsonDatabase::restoreFromBlob();
+    // Restore first, then apply the homologation policy. Otherwise the old
+    // Blob snapshot would overwrite the cleanup performed by the installer.
+    $run(static fn () => \App\Support\Installer::ensureVercelDemo());
     if (!$restored) {
         // First request: publish the complete baseline even when installer emitted no tracked SQL writes.
         \App\Support\JsonDatabase::mirrorFromPdo();
