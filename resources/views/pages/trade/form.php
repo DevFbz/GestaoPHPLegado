@@ -44,6 +44,7 @@
     </template>
     <div class="d-flex flex-wrap gap-2 mt-3">
       <button class="btn btn-primary" :disabled="saving || lecomStarting">Enviar solicitação de compra</button>
+      <button type="button" class="btn btn-outline-secondary" @click="openLecom()" :disabled="saving || lecomStarting">Abrir chamado no Lecom</button>
     </div>
   </form>
 </div>

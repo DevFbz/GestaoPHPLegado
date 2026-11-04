@@ -2,7 +2,7 @@
 
 Nenhuma licença paga. Tudo abaixo já vai **dentro do zip** (`vendor/` no PHP e `public/assets/vendor/` no navegador). Produção **não precisa** de `composer install` nem `npm`.
 
-Versões travadas em `composer.lock` na data da entrega (2026-09-18).
+Versões atuais alinhadas ao `composer.lock`; entrega original em 2026-09-18.
 
 ---
 
@@ -24,7 +24,7 @@ Diretos:
 | Pacote | Versão no lock | Uso |
 |---|---|---|
 | `dompdf/dompdf` | 3.1.6 | PDF do comprovante |
-| `phpoffice/phpspreadsheet` | 2.4.7 | Relatórios Excel e importação |
+| `phpoffice/phpspreadsheet` | 2.4.8 | Relatórios Excel e importação |
 | `phpmailer/phpmailer` | 6.12.0 | SMTP |
 | `ifsnop/mysqldump-php` | 2.13 | Backup SQL |
 
@@ -42,6 +42,9 @@ Transitivos (vêm junto, não se instala à mão):
 | `psr/simple-cache` | 3.0.0 |
 | `composer/pcre` | 3.4.0 |
 | `thecodingmachine/safe` | 3.4.0 |
+
+Em 2026-11-04, `phpoffice/phpspreadsheet` foi atualizado de 2.4.7 para 2.4.8
+por correções de segurança; o CI executa `composer audit --locked`.
 
 Autoload PSR-4: namespace `App\` → pasta `app/`.
 

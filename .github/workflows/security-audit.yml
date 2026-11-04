@@ -25,5 +25,7 @@ jobs:
         run: composer audit --locked
       - name: Install locked dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
-      - name: Run isolated SQLite persistence test
-        run: php tests/json_persistence.php
+      - name: Run PHP regression tests
+        run: |
+          php tests/ui_regressions.php
+          php tests/json_persistence.php

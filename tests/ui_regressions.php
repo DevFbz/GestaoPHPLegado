@@ -52,6 +52,7 @@ expectContains('app/Services/SettingsService.php', 'lecomApiStartUrl', 'Endpoint
 expectContains('app/Services/SettingsService.php', 'lecomWorkspaceStartUrl', 'Rota Workspace da biblioteca é gerada');
 expectContains('resources/views/pages/settings/index.php', 'lecom_process_version', 'Versão do processo Lecom é configurável');
 expectContains('resources/views/pages/trade/form.php', 'Abrir chamado no Lecom', 'Nova solicitação possui botão para abrir chamado');
+expectContains('resources/views/pages/trade/form.php', '@click="openLecom()"', 'Botão da solicitação abre o processo Lecom explicitamente');
 expectContains('resources/views/pages/trade/form.php', 'LecomSSOTicket', 'Nova solicitação lê o ticket SSO do cookie');
 expectContains('resources/views/pages/trade/form.php', 'ticket-sso', 'Nova solicitação envia o header ticket-sso');
 expectContains('resources/views/pages/trade/form.php', 'workspace/api/process/start', 'Nova solicitação usa o endpoint Workspace');
@@ -89,7 +90,7 @@ expectContains('app/Support/DemoSeeder.php', "date('Y-m-d 10:00:00')", 'Dados fi
 expectContains('app/bootstrap.php', 'date_default_timezone_set((string) Config::get', 'Fuso é aplicado antes da criação da base demo');
 expectContains('app/bootstrap.php', "json-runtime-v1.sqlite", 'SQLite é apenas cache efêmero do snapshot JSON');
 expectContains('app/bootstrap.php', 'JsonDatabase::restoreFromBlob', 'Runtime restaura o snapshot JSON antes de servir a requisição');
-expectContains('public/sw.js', "const VERSION = 'gestao-brindes-v11'", 'Cache de assets é invalidado para corrigir a separação da coluna Tipo');
+expectContains('public/sw.js', "const VERSION = 'gestao-brindes-v15'", 'Cache de assets usa a versão atual do service worker');
 expectContains('public/sw.js', "fetch(request, { cache: 'no-store' })", 'APIs não usam snapshots antigos');
 expectContains('public/sw.js', "'/assets/js/state-sync.js'", 'Cache inclui sincronização entre abas');
 expectContains('public/assets/js/api.js', 'BrindesSync?.touch(path)', 'Mutações invalidam os dados das telas abertas');
