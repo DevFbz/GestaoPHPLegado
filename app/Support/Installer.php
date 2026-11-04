@@ -215,11 +215,6 @@ final class Installer
 
         if (!\App\Support\DemoSqliteStore::shouldSeedDemo()) {
             self::resetVercelDemoToBlank();
-            try {
-                DemoSeeder::runCatalogs($noop);
-            } catch (Throwable $e) {
-                Log::error('Demo catalog seeder failed', ['error' => $e->getMessage()]);
-            }
             self::ensureDemoAccounts();
             return;
         }

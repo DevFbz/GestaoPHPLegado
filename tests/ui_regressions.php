@@ -83,10 +83,8 @@ expectContains('app/Support/Installer.php', "'stock.entry'", 'Perfil CD recebe p
 expectContains('app/Support/DemoSqliteStore.php', 'return false;', 'Homologação inicia vazia, sem dados operacionais fictícios');
 expectContains('app/Support/VercelJsonStore.php', 'Authorization: Bearer ', 'Snapshots JSON autenticam o Blob com Bearer token');
 expectContains('app/Support/Installer.php', 'resetVercelDemoToBlank', 'Homologação limpa dados operacionais');
-expectContains('app/Support/DemoSeeder.php', 'runCatalogs', 'Homologação recria cadastros e brindes antes do fluxo');
-expectContains('app/Support/DemoSeeder.php', 'CH-DEMO-HOJE', 'Base fictícia possui entrada do dia');
-expectContains('app/Support/DemoSeeder.php', 'NF-DEMO-001', 'Base fictícia percorre aprovação e recebimento TRADE');
-expectContains('app/Support/DemoSeeder.php', "date('Y-m-d 10:00:00')", 'Dados fictícios usam horário estável');
+expectNotContains('app/Support/Installer.php', 'DemoSeeder::runCatalogs($noop)', 'Homologação não recria catálogos nem brindes fictícios');
+expectContains('app/Support/Installer.php', 'ensureDemoAccounts();', 'Homologação mantém apenas as contas de acesso');
 expectContains('app/bootstrap.php', 'date_default_timezone_set((string) Config::get', 'Fuso é aplicado antes da criação da base demo');
 expectContains('app/bootstrap.php', "json-runtime-v1.sqlite", 'SQLite é apenas cache efêmero do snapshot JSON');
 expectContains('app/bootstrap.php', 'JsonDatabase::restoreFromBlob', 'Runtime restaura o snapshot JSON antes de servir a requisição');
