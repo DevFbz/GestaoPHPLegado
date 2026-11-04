@@ -139,7 +139,6 @@ final class SettingsController
             throw HttpException::forbidden('Apenas o Administrador pode zerar os dados.', 'ADMIN_ONLY');
         }
         \App\Support\Installer::resetVercelDemoToBlank(true);
-        \App\Core\Db::persistDemo();
         Audit::log('reset_data', 'system', null, null, ['scope' => 'operational'], 'Zerado pelo administrador');
         return Response::ok(['message' => 'Dados operacionais zerados com sucesso.']);
     }

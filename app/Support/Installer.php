@@ -299,7 +299,7 @@ final class Installer
             ['Solicitante Trade', 'solicitante@brindes.local', 4],
         ];
         foreach ($accounts as [$name, $email, $roleId]) {
-            $exists = Db::fetch('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL', [$email]);
+            $exists = Db::fetch('SELECT id, password_hash, active, must_change_password FROM users WHERE email = ? AND deleted_at IS NULL', [$email]);
             if ($exists === null) {
                 Db::insert('users', [
                     'name' => $name,
@@ -312,7 +312,8 @@ final class Installer
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-            } else {
+            } elseif (!password_verify($password, (string) $exists['password_hash'])
+                || !(int) $exists['active'] || (int) $exists['must_change_password'] !== 0) {
                 Db::update('users', [
                     'password_hash' => $hash,
                     'active' => 1,
@@ -323,7 +324,7 @@ final class Installer
         }
 
         $industryEmail = 'industria@brindes.local';
-        $industry = Db::fetch('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL', [$industryEmail]);
+        $industry = Db::fetch('SELECT id, password_hash, active, must_change_password FROM users WHERE email = ? AND deleted_at IS NULL', [$industryEmail]);
         if ($industry === null) {
             Db::insert('users', [
                 'name' => 'Portal Indústria',
@@ -337,7 +338,8 @@ final class Installer
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
-        } else {
+        } elseif (!password_verify($password, (string) $industry['password_hash'])
+            || !(int) $industry['active'] || (int) $industry['must_change_password'] !== 0) {
             Db::update('users', [
                 'password_hash' => $hash,
                 'active' => 1,
