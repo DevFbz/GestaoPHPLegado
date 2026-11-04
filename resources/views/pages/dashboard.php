@@ -138,7 +138,7 @@ ob_start(); ?>
 <?php
 $content = ob_get_clean();
 ob_start(); ?>
-<script src="<?= e(asset('vendor/chartjs/chart.umd.min.js')) ?>"></script>
+<script src="<?= e(asset('vendor/chartjs/chart.umd.js')) ?>"></script>
 <script>
 function dashboardPage() {
   const iso = (d) => d.toISOString().slice(0, 10);

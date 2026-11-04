@@ -49,16 +49,16 @@ Autoload PSR-4: namespace `App\` → pasta `app/`.
 
 ## Bibliotecas do navegador (arquivos locais)
 
-Não há `package.json`. Os arquivos estão em `public/assets/vendor/`.
+As bibliotecas do navegador são mantidas localmente em `public/assets/vendor/`, sem dependência de CDN em tempo de execução. `package.json` fixa a versão do Node usada pela Vercel; as versões destas bibliotecas estão registradas abaixo.
 
 | Biblioteca | Versão | Arquivo |
 |---|---|---|
 | Bootstrap | 5.3.3 | `bootstrap/bootstrap.min.css` + `bootstrap.bundle.min.js` |
-| Bootstrap Icons | (CSS local) | `bootstrap-icons/bootstrap-icons.min.css` |
-| Alpine.js | 3.x | `alpinejs/alpine.min.js` |
-| Chart.js | 4.4.7 | `chartjs/chart.umd.min.js` |
+| Bootstrap Icons | 1.13.2 | `bootstrap-icons/bootstrap-icons.min.css` + `fonts/bootstrap-icons.woff2` |
+| Alpine.js | 3.17.5 | `alpinejs/alpine.min.js` |
+| Chart.js | 4.4.7 | `chartjs/chart.umd.js` |
 | Signature Pad | 5.0.4 | `signature_pad/signature_pad.umd.min.js` |
-| jsQR | UMD local | `jsqr/jsQR.js` |
+| jsQR | 1.4.0 | `jsqr/jsQR.js` |
 
 JS próprio do sistema: `public/assets/js/app.js` e `api.js`.
 

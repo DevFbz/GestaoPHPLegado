@@ -1,4 +1,4 @@
-const VERSION = 'gestao-brindes-v14';
+const VERSION = 'gestao-brindes-v15';
 const STATIC_CACHE = VERSION + '-static';
 const PAGE_CACHE = VERSION + '-pages';
 const API_CACHE = VERSION + '-api';
@@ -16,7 +16,10 @@ const STATIC_ASSETS = [
   '/assets/vendor/bootstrap/bootstrap.bundle.min.js',
   '/assets/vendor/bootstrap-icons/bootstrap-icons.min.css',
   '/assets/vendor/bootstrap-icons/fonts/bootstrap-icons.woff2',
-  '/assets/vendor/alpinejs/alpine.min.js'
+  '/assets/vendor/alpinejs/alpine.min.js',
+  '/assets/vendor/chartjs/chart.umd.js',
+  '/assets/vendor/signature_pad/signature_pad.umd.min.js',
+  '/assets/vendor/jsqr/jsQR.js'
 ];
 
 self.addEventListener('install', (event) => {
