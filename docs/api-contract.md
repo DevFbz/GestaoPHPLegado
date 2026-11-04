@@ -11,7 +11,7 @@
 | | |
 |---|---|
 | Local URL | `http://127.0.0.1:8000` (start with `bin\serve.bat`, see README) |
-| Demo logins (password `Demo@123`) | `admin@brindes.local` (Administrador) · `gestor@brindes.local` (Gestor/Aprovador) · `operacao@brindes.local` (Operação/Estoque) · `solicitante@brindes.local` (Solicitante) |
+| Homologação | As contas de teste usam a senha definida na variável protegida `DEMO_PASSWORD`. |
 | API client | `public/assets/js/api.js` → global `Api` (handles CSRF, Idempotency-Key, errors, 401 redirect, PT-BR formatters, labels) |
 | Pages | Server-rendered PHP shells in `resources/views/pages/...`; each page loads its data with `Api.get(...)` |
 

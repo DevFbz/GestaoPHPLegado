@@ -279,76 +279,65 @@ final class Installer
         });
     }
 
-    /** Demo logins used on the public Vercel walkthrough (password Demo@123). */
+    /** Homologation logins; password comes from the protected environment. */
     public static function ensureDemoAccounts(): void
     {
         if (!in_array('users', self::tables(), true)) {
             return;
         }
-        $admin = Db::fetch("SELECT id, must_change_password FROM users WHERE email = 'admin@brindes.local' AND deleted_at IS NULL");
-        $needHash = $admin !== null && (int) ($admin['must_change_password'] ?? 0) === 1;
+        $password = (string) (getenv('DEMO_PASSWORD') ?: 'Demo@123');
+        $hash = password_hash($password, PASSWORD_DEFAULT);
         $accounts = [
             ['Gestor Comercial', 'gestor@brindes.local', 2],
             ['Operação CD', 'operacao@brindes.local', 3],
             ['Solicitante Trade', 'solicitante@brindes.local', 4],
         ];
         foreach ($accounts as [$name, $email, $roleId]) {
-            if (Db::fetch('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL', [$email]) === null) {
-                $needHash = true;
-                break;
-            }
-        }
-        if (Db::fetch("SELECT id FROM users WHERE email = 'industria@brindes.local' AND deleted_at IS NULL") === null) {
-            $needHash = true;
-        }
-        if (!$needHash) {
-            return;
-        }
-
-        $hash = password_hash(DemoSeeder::PASSWORD, PASSWORD_DEFAULT);
-        if ($admin !== null && (int) ($admin['must_change_password'] ?? 0) === 1) {
-            Db::update('users', [
-                'password_hash' => $hash,
-                'must_change_password' => 0,
-                'active' => 1,
-            ], ['id' => (int) $admin['id']]);
-        }
-
-        foreach ($accounts as [$name, $email, $roleId]) {
             $exists = Db::fetch('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL', [$email]);
-            if ($exists !== null) {
-                continue;
-            }
-            Db::insert('users', [
-                'name' => $name,
-                'email' => $email,
-                'password_hash' => $hash,
-                'role_id' => $roleId,
-                'active' => 1,
-                'must_change_password' => 0,
-                'session_version' => 1,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        }
-
-        $industryEmail = 'industria@brindes.local';
-        if (Db::fetch('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL', [$industryEmail]) === null) {
-            $industryId = (int) (Db::value('SELECT id FROM industries ORDER BY id LIMIT 1') ?? 0);
-            if ($industryId > 0) {
+            if ($exists === null) {
                 Db::insert('users', [
-                    'name' => 'Portal Indústria Alfa',
-                    'email' => $industryEmail,
+                    'name' => $name,
+                    'email' => $email,
                     'password_hash' => $hash,
-                    'role_id' => 5,
-                    'industry_id' => $industryId,
+                    'role_id' => $roleId,
                     'active' => 1,
                     'must_change_password' => 0,
                     'session_version' => 1,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
+            } else {
+                Db::update('users', [
+                    'password_hash' => $hash,
+                    'active' => 1,
+                    'must_change_password' => 0,
+                    'updated_at' => now(),
+                ], ['id' => (int) $exists['id']]);
             }
+        }
+
+        $industryEmail = 'industria@brindes.local';
+        $industry = Db::fetch('SELECT id FROM users WHERE email = ? AND deleted_at IS NULL', [$industryEmail]);
+        if ($industry === null) {
+            Db::insert('users', [
+                'name' => 'Portal Indústria',
+                'email' => $industryEmail,
+                'password_hash' => $hash,
+                'role_id' => 5,
+                'industry_id' => null,
+                'active' => 1,
+                'must_change_password' => 0,
+                'session_version' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } else {
+            Db::update('users', [
+                'password_hash' => $hash,
+                'active' => 1,
+                'must_change_password' => 0,
+                'updated_at' => now(),
+            ], ['id' => (int) $industry['id']]);
         }
     }
 

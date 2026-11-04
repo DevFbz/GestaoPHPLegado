@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-/** Identifies the fictional seed dataset used by Vercel demo deployments. */
+/** Identifies the blank homologation dataset used by the Vercel deployment. */
 final class DemoSqliteStore
 {
     public static function shouldSeedDemo(): bool
     {
-        return true;
+        return false;
     }
 
     public static function datasetMarker(): string
     {
-        return 'demo-v7';
+        return 'homolog-blank-v1';
     }
 }

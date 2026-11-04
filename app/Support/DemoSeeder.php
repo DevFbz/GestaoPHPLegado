@@ -16,12 +16,12 @@ use App\Services\TradeService;
 
 /**
  * Demo / homologation data. Goes through the real services, so every movement,
- * balance and audit row is consistent. All demo users use the password Demo@123.
+ * balance and audit row is consistent. Homologation account credentials come
+ * from the protected DEMO_PASSWORD environment variable.
  * NEVER run in production.
  */
 final class DemoSeeder
 {
-    public const PASSWORD = 'Demo@123';
 
     /** Seed only master data; operational records remain empty. */
     public static function runCatalogs(callable $out): void
