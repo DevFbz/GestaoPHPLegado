@@ -1,0 +1,29 @@
+name: Dependency security audit
+
+on:
+  push:
+    branches: [homolog]
+  pull_request:
+    branches: [homolog]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  composer-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, gd, mbstring, pdo_mysql, pdo_sqlite, sqlite3, zip
+          tools: composer:v2
+          coverage: none
+      - name: Audit locked Composer dependencies
+        run: composer audit --locked
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Run isolated SQLite persistence test
+        run: php tests/json_persistence.php
