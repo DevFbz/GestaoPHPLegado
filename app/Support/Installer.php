@@ -249,29 +249,40 @@ final class Installer
             return;
         }
 
-        Db::transaction(function () use ($marker): void {
-            // User references must be cleared before their lookup rows go.
-            Db::query('UPDATE users SET department_id = NULL, industry_id = NULL');
-            $tables = [
-                'notifications', 'audit_log', 'login_attempts', 'password_resets',
-                'idempotency_keys', 'request_status_history', 'approvals', 'request_items',
-                'requests', 'delivery_items', 'deliveries', 'event_allocations', 'events',
-                'stock_exit_orders', 'stock_movements', 'stock_positions', 'stock', 'items',
-                'suppliers', 'industries', 'departments', 'categories', 'locations',
-                'approval_rules', 'sequences',
-            ];
-            $available = self::tables();
-            foreach ($tables as $table) {
-                if (in_array($table, $available, true)) {
-                    Db::query('DELETE FROM `' . $table . '`');
+        $sqliteForeignKeysDisabled = false;
+        if (Db::isSqlite()) {
+            Db::pdo()->exec('PRAGMA foreign_keys = OFF');
+            $sqliteForeignKeysDisabled = true;
+        }
+        try {
+            Db::transaction(function () use ($marker): void {
+                // User references must be cleared before their lookup rows go.
+                Db::query('UPDATE users SET department_id = NULL, industry_id = NULL');
+                $tables = [
+                    'notifications', 'audit_log', 'login_attempts', 'password_resets',
+                    'idempotency_keys', 'request_status_history', 'approvals', 'request_items',
+                    'requests', 'delivery_items', 'deliveries', 'event_allocations', 'events',
+                    'stock_exit_orders', 'stock_movements', 'stock_positions', 'stock', 'items',
+                    'suppliers', 'industries', 'departments', 'categories', 'locations',
+                    'approval_rules', 'sequences',
+                ];
+                $available = self::tables();
+                foreach ($tables as $table) {
+                    if (in_array($table, $available, true)) {
+                        Db::query('DELETE FROM `' . $table . '`');
+                    }
                 }
+                Db::insert('sequences', [
+                    'name' => '__demo_reset__',
+                    'period' => $marker,
+                    'last_value' => 1,
+                ]);
+            });
+        } finally {
+            if ($sqliteForeignKeysDisabled) {
+                Db::pdo()->exec('PRAGMA foreign_keys = ON');
             }
-            Db::insert('sequences', [
-                'name' => '__demo_reset__',
-                'period' => $marker,
-                'last_value' => 1,
-            ]);
-        });
+        }
     }
 
     /** Homologation logins; password comes from the protected environment. */

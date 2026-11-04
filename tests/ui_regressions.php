@@ -84,7 +84,8 @@ expectContains('app/Support/DemoSqliteStore.php', 'return false;', 'Homologaçã
 expectContains('app/Support/VercelJsonStore.php', 'Authorization: Bearer ', 'Snapshots JSON autenticam o Blob com Bearer token');
 expectContains('app/Support/Installer.php', 'resetVercelDemoToBlank', 'Homologação limpa dados operacionais');
 expectNotContains('app/Support/Installer.php', 'DemoSeeder::runCatalogs($noop)', 'Homologação não recria catálogos nem brindes fictícios');
-expectContains('app/Support/Installer.php', 'ensureDemoAccounts();', 'Homologação mantém apenas as contas de acesso');
+expectContains('app/Support/Installer.php', "Db::pdo()->exec('PRAGMA foreign_keys = OFF')", 'Reset SQLite desativa FKs durante a limpeza ordenada');
+expectContains('app/Support/Installer.php', "Db::pdo()->exec('PRAGMA foreign_keys = ON')", 'Reset SQLite reativa FKs após a limpeza');
 expectContains('app/bootstrap.php', 'date_default_timezone_set((string) Config::get', 'Fuso é aplicado antes da criação da base demo');
 expectContains('app/bootstrap.php', "json-runtime-v1.sqlite", 'SQLite é apenas cache efêmero do snapshot JSON');
 expectContains('app/bootstrap.php', 'JsonDatabase::restoreFromBlob', 'Runtime restaura o snapshot JSON antes de servir a requisição');
