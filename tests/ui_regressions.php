@@ -43,6 +43,7 @@ expectContains('resources/views/layouts/auth.php', 'auth-login-shell', 'Login us
 expectContains('resources/views/layouts/auth.php', 'auth-login-card', 'Login mantém cartão central focado nas credenciais');
 expectContains('public/assets/css/app.css', '.auth-login-shell', 'Estilo do novo layout de autenticação está definido');
 expectContains('resources/views/pages/auth/login.php', 'auth-submit', 'Login possui ação visual principal');
+expectContains('resources/views/pages/auth/login.php', 'noRedirect: true', 'Login exibe erro de credencial sem redirecionar para a própria tela');
 expectContains('resources/views/layouts/app.php', 'Marcar todas como lidas', 'Modal de notificações possui marcar todas como lidas');
 expectContains('resources/views/layouts/app.php', 'refreshDataBtn', 'Cabeçalho possui botão para atualizar os dados');
 expectContains('public/assets/js/app.js', "searchParams.set('_refresh'", 'Botão atualizar força nova leitura da página');

@@ -72,7 +72,7 @@ ob_start(); ?>
     btn.disabled = true;
     btn.innerHTML = '<span class="spin d-inline-block me-2" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%"></span><span>Entrando…</span>';
     try {
-      await Api.post('/api/auth/login', Object.fromEntries(new FormData(this)));
+      await Api.post('/api/auth/login', Object.fromEntries(new FormData(this)), { noRedirect: true });
       const next = new URLSearchParams(location.search).get('next');
       location.href = Api.url(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
     } catch (e) {
