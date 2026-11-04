@@ -14,6 +14,6 @@ final class DemoSqliteStore
 
     public static function datasetMarker(): string
     {
-        return 'homolog-blank-v1';
+        return 'homolog-blank-v2';
     }
 }
