@@ -154,6 +154,19 @@ final class JsonDatabase
         return true;
     }
 
+    public static function refreshBaseRevision(): void
+    {
+        if (!Env::get('VERCEL')) {
+            return;
+        }
+        $token = (string) Env::get('BLOB_READ_WRITE_TOKEN', '');
+        $storeId = (string) Env::get('BLOB_STORE_ID', '');
+        if ($token === '' || $storeId === '') {
+            throw new RuntimeException('Persistência JSON indisponível para atualizar a revisão.');
+        }
+        self::$baseRevision = (new VercelJsonStore($token, null, $storeId))->currentRevision();
+    }
+
     public static function restoreSnapshot(array $documents, string $revision): void
     {
         $expectedFiles = array_keys(self::GROUPS);

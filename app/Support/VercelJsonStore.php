@@ -102,6 +102,13 @@ final class VercelJsonStore
         return $this->currentManifest() !== null;
     }
 
+    public function currentRevision(): ?string
+    {
+        $this->assertToken();
+        $manifest = $this->currentManifest();
+        return $manifest === null ? null : (string) ($manifest['revision'] ?? '');
+    }
+
     /** @return array{revision:string,documents:?array<string,array<string,mixed>>}|null */
     public function loadSnapshot(?string $knownRevision = null): ?array
     {

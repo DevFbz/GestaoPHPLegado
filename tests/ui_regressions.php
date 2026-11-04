@@ -92,6 +92,8 @@ expectContains('app/bootstrap.php', "json-runtime-v1.sqlite", 'SQLite é apenas 
 expectContains('app/bootstrap.php', '$run(static fn () => \\App\\Support\\Installer::ensureVercelDemo());', 'Bootstrap normaliza os dados após restaurar o snapshot');
 expectContains('app/routes.php', '/api/admin/reset-data', 'Admin possui endpoint protegido para zerar os dados');
 expectContains('app/Controllers/SettingsController.php', 'resetData', 'Backend possui ação administrativa para zerar dados');
+expectContains('app/Support/VercelJsonStore.php', 'public function currentRevision', 'Storage permite atualizar a revisão após conflito');
+expectContains('app/Core/Db.php', 'JsonSnapshotConflict', 'Persistência trata conflito concorrente com retentativa');
 expectContains('app/Support/Installer.php', "'admin@brindes.local', 1", 'Homologação garante a conta administrativa configurada');
 expectContains('app/Support/Installer.php', 'password_verify($password', 'Bootstrap não regrava hashes em toda requisição');
 expectContains('app/Core/App.php', "manifest-src 'self'", 'CSP permite o manifesto apenas na própria origem');

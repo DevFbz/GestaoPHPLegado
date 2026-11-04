@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core;
 
+use App\Support\JsonSnapshotConflict;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -283,7 +284,25 @@ final class Db
                 return;
             }
             // SQLite is an ephemeral request cache; JSON in private Blob is durable.
-            \App\Support\JsonDatabase::mirrorFromPdo(self::mutatedTables());
+            $tables = self::mutatedTables();
+            $lastConflict = null;
+            for ($attempt = 0; $attempt < 3; $attempt++) {
+                try {
+                    \App\Support\JsonDatabase::mirrorFromPdo($tables);
+                    self::clearMutationState();
+                    return;
+                } catch (JsonSnapshotConflict $e) {
+                    $lastConflict = $e;
+                    if ($attempt === 2) {
+                        throw $e;
+                    }
+                    \App\Support\JsonDatabase::refreshBaseRevision();
+                    usleep(100000 * (2 ** $attempt));
+                }
+            }
+            if ($lastConflict !== null) {
+                throw $lastConflict;
+            }
             self::clearMutationState();
         } catch (Throwable $e) {
             Log::error('JSON snapshot persist failed', ['error' => $e->getMessage()]);
