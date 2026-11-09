@@ -10,7 +10,7 @@
       <option value="requests">Solicitações</option>
     </select>
   </div>
-  <p><a :href="Api.url('/api/import/template/' + type)">Baixar modelo Excel</a></p>
+  <p><a :href="Api.url('/api/import/template/' + type)" download data-no-loading>Baixar modelo Excel</a></p>
   <div class="mb-3"><input class="form-control" type="file" accept=".xlsx" @change="file=$event.target.files[0]"></div>
   <button class="btn btn-outline-primary" @click="preview">Pré-visualizar</button>
   <button class="btn btn-primary" @click="commit" :disabled="!previewed">Importar</button>
