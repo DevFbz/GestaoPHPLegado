@@ -18,7 +18,7 @@ final class ImportService
         $ss = new Spreadsheet();
         $sheet = $ss->getActiveSheet();
         if ($type === 'items') {
-            $sheet->fromArray([['codigo', 'nome', 'categoria', 'local', 'fornecedor', 'valor_unitario', 'estoque_minimo', 'quantidade_inicial', 'observacoes']], null, 'A1');
+            $sheet->fromArray([['codigo', 'nome', 'categoria', 'industria', 'local', 'fornecedor', 'valor_unitario', 'estoque_minimo', 'quantidade_inicial', 'observacoes']], null, 'A1');
         } else {
             $sheet->fromArray([['brinde', 'quantidade', 'valor', 'industria', 'departamento', 'finalidade', 'destinatario', 'chamado_compra', 'data_necessaria', 'observacoes']], null, 'A1');
         }
