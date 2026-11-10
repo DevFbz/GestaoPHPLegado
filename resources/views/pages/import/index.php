@@ -19,7 +19,7 @@
   <div class="mt-3" x-show="result" x-cloak>
     <div class="alert" :class="canCommit ? 'alert-info' : 'alert-warning'">
       <strong x-text="result?.total || 0"></strong> linha(s) encontrada(s).
-      <span x-show="result?.errors"> <strong x-text="result.errors"></strong> com erro.</span>
+      <span x-show="result?.errors"> <strong x-text="result?.errors || 0"></strong> com erro.</span>
       <span x-show="canCommit"> Corrija as linhas inválidas ou clique em Importar para gravar as válidas.</span>
     </div>
     <div class="table-responsive">
@@ -37,7 +37,7 @@
         </tbody>
       </table>
     </div>
-    <div class="alert alert-success" x-show="imported" x-text="'Importação concluída: ' + imported.created + ' registro(s) criado(s).'"></div>
+    <div class="alert alert-success" x-show="imported" x-text="'Importação concluída: ' + (imported?.created || 0) + ' registro(s) criado(s).'"></div>
   </div>
 </div>
 <?php

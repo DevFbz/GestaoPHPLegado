@@ -175,6 +175,14 @@ final class Installer
             $n = self::runFile(BASE_PATH . '/database/migrate_trade.sql');
             $out("migrate_trade.sql aplicado ({$n} comandos).");
         }
+        if (!Db::hasColumn('items', 'industry_id')) {
+            if (Db::isSqlite()) {
+                Db::pdo()->exec('ALTER TABLE items ADD COLUMN industry_id INTEGER NULL');
+            } else {
+                $n = self::runFile(BASE_PATH . '/database/migrate_import_industry.sql');
+                $out("migrate_import_industry.sql aplicado ({$n} comandos).");
+            }
+        }
         if (!Db::hasColumn('requests', 'invoice_path')) {
             if (Db::isSqlite()) {
                 Db::pdo()->exec('ALTER TABLE requests ADD COLUMN invoice_path TEXT NULL');

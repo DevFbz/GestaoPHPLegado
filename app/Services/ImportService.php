@@ -42,12 +42,7 @@ final class ImportService
         $created = 0;
         if ($type === 'items') {
             foreach ($ok as $r) {
-                $payload = $r['payload'];
-                $industryName = (string) ($r['industry_name'] ?? '');
-                Db::transaction(function () use ($payload, $industryName): void {
-                    $payload['industry_id'] = self::resolveIndustryId($industryName);
-                    ItemService::create($payload);
-                });
+                ItemService::create($r['payload']);
                 $created++;
             }
         } else {
@@ -104,27 +99,36 @@ final class ImportService
             if (!$catId) {
                 $msgs[] = 'Categoria não encontrada: ' . $catName;
             }
-            $industryName = trim((string) ($d['industria'] ?? $d['industry'] ?? ''));
-            $industryId = self::findIndustryId($industryName);
-            $code = trim((string) ($d['codigo'] ?? $d['code'] ?? ''));
-            $code = preg_replace('/\s+/', '', $code) ?? $code;
+            $initialQuantity = (int) ($d['quantidade_inicial'] ?? $d['quantidade'] ?? 0);
+            $locationName = $d['local'] ?? $d['location'] ?? '';
+            $locationId = self::lookupId('locations', $locationName);
+            if ($initialQuantity > 0 && !$locationId) {
+                $msgs[] = 'Local obrigatório e não encontrado: ' . ($locationName !== '' ? $locationName : '(vazio)');
+            }
+            $industryName = $d['industria'] ?? $d['industry'] ?? '';
+            $industryId = self::lookupId('industries', $industryName);
+            if ($industryName !== '' && !$industryId) {
+                $msgs[] = 'Indústria não encontrada: ' . $industryName;
+            }
+            $code = $d['codigo'] ?? $d['code'] ?? null;
+            $code = is_string($code) && trim($code) !== '' ? preg_replace('/\s+/', '', trim($code)) : null;
             $payload = [
-                'code' => $code !== '' ? $code : null,
+                'code' => $code,
                 'name' => $name,
                 'category_id' => $catId,
                 'industry_id' => $industryId,
-                'location_id' => self::lookupId('locations', $d['local'] ?? $d['location'] ?? ''),
+                'location_id' => $locationId,
                 'supplier_id' => self::lookupId('suppliers', $d['fornecedor'] ?? $d['supplier'] ?? ''),
-                'unit_value' => $d['valor_unitario'] ?? $d['valor'] ?? null,
+                'unit_value' => ($d['valor_unitario'] ?? $d['valor'] ?? '') !== '' ? ($d['valor_unitario'] ?? $d['valor']) : null,
                 'min_stock' => (int) ($d['estoque_minimo'] ?? 0),
-                'initial_quantity' => (int) ($d['quantidade_inicial'] ?? $d['quantidade'] ?? 0),
+                'initial_quantity' => $initialQuantity,
                 'notes' => $d['observacoes'] ?? $d['notes'] ?? null,
             ];
             $ok = $msgs === [];
             if (!$ok) {
                 $errors++;
             }
-            $out[] = ['line' => $row['line'], 'ok' => $ok, 'errors' => $msgs, 'payload' => $payload, 'preview' => $name, 'industry_name' => $industryName];
+            $out[] = ['line' => $row['line'], 'ok' => $ok, 'errors' => $msgs, 'payload' => $payload, 'preview' => $name];
         }
         return ['rows' => $out, 'errors' => $errors, 'total' => count($out)];
     }
@@ -170,50 +174,8 @@ final class ImportService
         if ($name === '') {
             return null;
         }
-        $id = Db::value("SELECT id FROM `{$table}` WHERE TRIM(name) = ? AND deleted_at IS NULL", [$name]);
+        $id = Db::value("SELECT id FROM `{$table}` WHERE name = ? AND deleted_at IS NULL", [$name]);
         return $id ? (int) $id : null;
-    }
-
-    private static function findIndustryId(string $name): ?int
-    {
-        $name = trim($name);
-        if ($name === '') {
-            return null;
-        }
-        $id = Db::value(
-            'SELECT id FROM industries WHERE LOWER(TRIM(name)) = LOWER(?) AND deleted_at IS NULL ORDER BY id LIMIT 1',
-            [$name]
-        );
-        return $id ? (int) $id : null;
-    }
-
-    private static function resolveIndustryId(string $name): ?int
-    {
-        $name = trim($name);
-        if ($name === '') {
-            return null;
-        }
-        $existingId = self::findIndustryId($name);
-        if ($existingId !== null) {
-            return $existingId;
-        }
-
-        $now = now();
-        $industryId = Db::insert('industries', [
-            'name' => $name,
-            'cnpj' => null,
-            'contact_name' => null,
-            'contact_email' => null,
-            'contact_phone' => null,
-            'notes' => null,
-            'active' => 1,
-            'created_by' => Auth::id(),
-            'updated_by' => Auth::id(),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
-        Audit::log('create', 'industry', $industryId, null, ['name' => $name], $name);
-        return $industryId;
     }
 
     private static function itemId(string $name): ?int
