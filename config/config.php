@@ -25,7 +25,7 @@ return [
     ],
 
     'session' => [
-        'name' => 'BRINDES_SID',
+        'name' => Env::get('SESSION_NAME', 'BRINDES_SID'),
         'driver' => Env::get('SESSION_DRIVER', 'file'), // file | cookie
         'idle_minutes' => (int) Env::get('SESSION_IDLE_MINUTES', 480),
     ],
