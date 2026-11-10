@@ -364,6 +364,34 @@ if (!empty($importedGift['id'])) {
             && ($importedGiftApi['json']['data']['supplier']['id'] ?? null) === (int) $supId,
         $importedGiftApi['json']['data'] ?? $importedGiftApi);
 }
+
+$missingIndustryPath = tempnam(sys_get_temp_dir(), 'brindes-missing-industry-');
+$missingIndustryBook = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+$missingIndustrySheet = $missingIndustryBook->getActiveSheet();
+$missingIndustrySheet->fromArray([[
+    'codigo', 'nome', 'categoria', 'industria', 'local', 'fornecedor',
+    'valor_unitario', 'estoque_minimo', 'quantidade_inicial', 'observacoes',
+]], null, 'A1');
+$missingIndustrySheet->fromArray([[
+    'BRD-91002', 'Brinde sem indústria', 'Eletrônicos', '', '', 'Fornecedor X',
+    '12,50', 0, 0, 'Teste de validação da indústria',
+]], null, 'A2');
+(new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($missingIndustryBook))->save($missingIndustryPath);
+$missingIndustryBook->disconnectWorksheets();
+$missingIndustryUpload = upload($missingIndustryPath, 'modelo-importacao-brindes.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+$missingIndustryPreview = $admin->call('POST', '/api/import/items/preview', [], [], ['file' => $missingIndustryUpload]);
+$missingIndustryCommit = $admin->call('POST', '/api/import/items/commit', [], [], ['file' => $missingIndustryUpload]);
+$missingIndustryGift = Db::fetch('SELECT * FROM items WHERE code = ?', ['BRD-91002']);
+check('C6d importação rejeita brinde sem indústria e não o grava',
+    $missingIndustryPreview['status'] === 200
+        && ($missingIndustryPreview['json']['data']['rows'][0]['ok'] ?? true) === false
+        && in_array('Indústria obrigatória', $missingIndustryPreview['json']['data']['rows'][0]['errors'] ?? [], true)
+        && $missingIndustryCommit['status'] === 200
+        && (int) ($missingIndustryCommit['json']['data']['created'] ?? -1) === 0
+        && (int) ($missingIndustryCommit['json']['data']['skipped'] ?? -1) === 1
+        && $missingIndustryGift === null,
+    [$missingIndustryPreview['json']['data']['rows'][0] ?? null, $missingIndustryCommit['json']['data'] ?? null, $missingIndustryGift]);
+unlink($missingIndustryPath);
 unlink($itemImportPath);
 
 $r = $admin->post('/api/industries', ['name' => 'Indústria Beta', 'contact_email' => 'invalido']);

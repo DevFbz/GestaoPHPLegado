@@ -101,7 +101,9 @@ final class ImportService
             }
             $industryName = $d['industria'] ?? $d['industry'] ?? '';
             $industryId = self::lookupId('industries', $industryName);
-            if (trim($industryName) !== '' && !$industryId) {
+            if (trim($industryName) === '') {
+                $msgs[] = 'Indústria obrigatória';
+            } elseif (!$industryId) {
                 $msgs[] = 'Indústria não encontrada: ' . trim($industryName);
             }
             $code = trim((string) ($d['codigo'] ?? $d['code'] ?? ''));
