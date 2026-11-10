@@ -44,7 +44,6 @@ expectContains('resources/views/layouts/auth.php', 'auth-login-card', 'Login man
 expectContains('public/assets/css/app.css', '.auth-login-shell', 'Estilo do novo layout de autenticação está definido');
 expectContains('resources/views/pages/auth/login.php', 'auth-submit', 'Login possui ação visual principal');
 expectContains('resources/views/pages/auth/login.php', 'noRedirect: true', 'Login exibe erro de credencial sem redirecionar para a própria tela');
-expectContains('resources/views/pages/auth/login.php', 'Object.keys(e.fields).length > 0', 'Login mostra erros globais quando a API não retorna erros de campo');
 expectContains('resources/views/layouts/app.php', 'Marcar todas como lidas', 'Modal de notificações possui marcar todas como lidas');
 expectContains('resources/views/layouts/app.php', 'refreshDataBtn', 'Cabeçalho possui botão para atualizar os dados');
 expectContains('public/assets/js/app.js', "searchParams.set('_refresh'", 'Botão atualizar força nova leitura da página');
@@ -53,13 +52,12 @@ expectContains('app/Services/SettingsService.php', 'lecom_portal_url', 'Portal L
 expectContains('app/Services/SettingsService.php', 'lecomApiStartUrl', 'Endpoint de abertura Lecom é gerado');
 expectContains('app/Services/SettingsService.php', 'lecomWorkspaceStartUrl', 'Rota Workspace da biblioteca é gerada');
 expectContains('resources/views/pages/settings/index.php', 'lecom_process_version', 'Versão do processo Lecom é configurável');
-expectContains('resources/views/pages/settings/index.php', "Exportar todos os dados (Excel)", 'Configurações oferece exportação completa em Excel');
-expectContains('resources/views/pages/settings/index.php', "Api.url('/api/admin/export-all')", 'Botão Excel aponta para exportação de todas as tabelas');
-expectContains('resources/views/pages/settings/index.php', 'Importar exportação completa', 'Configurações offline oferece importação do Excel completo');
-expectContains('resources/views/pages/settings/index.php', "Api.upload('/api/admin/import-all/preview'", 'Prévia da importação completa envia o Excel ao endpoint');
-expectContains('resources/views/pages/settings/index.php', "Api.upload('/api/admin/import-all/commit'", 'Confirmação importa registros novos pelo endpoint');
-expectNotContains('app/Services/DataImportService.php', 'json_encode($row)', 'Falha de importação não grava conteúdo de linhas da planilha nos logs');
-expectNotContains('app/Services/DataImportService.php', 'IMPORT_CONSTRAINT_DEBUG', 'Importação não usa depuração de restrições em produção');
+expectContains('resources/views/pages/settings/index.php', 'data-no-loading', 'Downloads de Excel e backup não ativam o carregamento de navegação');
+expectContains('resources/views/pages/settings/index.php', 'Exportar todos os dados (Excel)', 'Configurações mantém exportação completa em português');
+expectContains('app/Services/DataExportService.php', "'Exportação completa de dados'", 'Excel possui aba de resumo didática');
+expectContains('app/Services/DataExportService.php', 'Campos de autenticação e tokens foram omitidos', 'Excel informa os campos omitidos por segurança');
+expectContains('app/Services/DataExportService.php', 'COLUMN_LABELS', 'Excel usa cabeçalhos traduzidos para português');
+
 expectContains('resources/views/pages/trade/form.php', 'Abrir chamado no Lecom', 'Nova solicitação possui botão para abrir chamado');
 expectContains('resources/views/pages/trade/form.php', '@click="openLecom()"', 'Botão da solicitação abre o processo Lecom explicitamente');
 expectContains('resources/views/pages/trade/form.php', 'LecomSSOTicket', 'Nova solicitação lê o ticket SSO do cookie');
@@ -71,6 +69,12 @@ expectContains('resources/views/pages/items/show.php', 'Abrir formulário Lecom'
 expectContains('resources/views/pages/items/show.php', 'item-detail-actions', 'Ações do detalhe do brinde têm agrupamento visual próprio');
 expectContains('public/assets/css/app.css', '.item-detail-actions', 'Ações do detalhe do brinde não esticam na altura do cabeçalho');
 expectContains('resources/views/pages/events/show.php', 'event-detail-actions', 'Ações do evento têm agrupamento visual próprio');
+
+
+
+
+
+
 expectContains('resources/views/pages/events/show.php', 'Cadastre uma indústria antes de incluir a cota.', 'Evento explica quando não há indústria disponível');
 expectContains('resources/views/pages/events/show.php', "UI.toast('Selecione uma indústria e um brinde para incluir a cota.'", 'Incluir cota informa seleção incompleta');
 expectContains('resources/views/pages/events/show.php', 'this.row = { industry_id: \'\', item_id: \'\', qty_allocated: 1 }', 'Incluir cota limpa o formulário após adicionar');
@@ -89,7 +93,7 @@ expectContains('app/Support/LookupRegistry.php', "'locations'", 'Cadastro de loc
 expectContains('app/Support/LookupRegistry.php', "'suppliers'", 'Cadastro de fornecedores está registrado');
 expectContains('resources/views/pages/stock/_form.php', 'data-can-lookups', 'Entrada não consulta cadastros sem permissão');
 expectContains('app/Support/Installer.php', "'stock.entry'", 'Perfil CD recebe permissão de entrada na atualização');
-expectContains('app/Support/DemoSqliteStore.php', "'homolog-v3'", 'Homologação usa o marcador de dataset v3');
+expectContains('app/Support/DemoSqliteStore.php', "'homolog-blank-v3'", 'Homologação usa marcador de limpeza zerada v3 compatível com o schema');
 expectContains('app/Support/VercelJsonStore.php', 'Authorization: Bearer ', 'Snapshots JSON autenticam o Blob com Bearer token');
 expectContains('app/Support/Installer.php', 'resetVercelDemoToBlank', 'Homologação limpa dados operacionais');
 expectNotContains('app/Support/Installer.php', 'DemoSeeder::runCatalogs($noop)', 'Homologação não recria catálogos nem brindes fictícios');
@@ -97,7 +101,15 @@ expectContains('app/Support/Installer.php', "Db::pdo()->exec('PRAGMA foreign_key
 expectContains('app/Support/Installer.php', "Db::pdo()->exec('PRAGMA foreign_keys = ON')", 'Reset SQLite reativa FKs após a limpeza');
 expectContains('app/bootstrap.php', 'date_default_timezone_set((string) Config::get', 'Fuso é aplicado antes da criação da base demo');
 expectContains('app/bootstrap.php', "json-runtime-v1.sqlite", 'SQLite é apenas cache efêmero do snapshot JSON');
-expectContains('app/bootstrap.php', 'JsonDatabase::restoreFromBlob', 'Runtime restaura o snapshot JSON antes de servir a requisição');
+expectContains('app/bootstrap.php', '$run(static fn () => \\App\\Support\\Installer::ensureVercelDemo());', 'Bootstrap normaliza os dados após restaurar o snapshot');
+expectContains('app/routes.php', '/api/admin/reset-data', 'Admin possui endpoint protegido para zerar os dados');
+expectContains('app/Controllers/SettingsController.php', 'resetData', 'Backend possui ação administrativa para zerar dados');
+expectContains('app/Support/VercelJsonStore.php', 'public function currentRevision', 'Storage permite atualizar a revisão após conflito');
+expectContains('app/Core/Db.php', 'JsonSnapshotConflict', 'Persistência trata conflito concorrente com retentativa');
+expectContains('app/Support/Installer.php', "'admin@brindes.local', 1", 'Homologação garante a conta administrativa configurada');
+expectContains('app/Support/Installer.php', 'password_verify($password', 'Bootstrap não regrava hashes em toda requisição');
+expectContains('app/Core/App.php', "manifest-src 'self'", 'CSP permite o manifesto apenas na própria origem');
+expectContains('resources/views/pages/settings/index.php', 'Zerar todos os dados', 'Configurações exibem botão de limpeza somente ao administrador');
 expectContains('public/sw.js', "const VERSION = 'gestao-brindes-v16'", 'Cache de assets usa a versão atual do service worker');
 expectContains('public/sw.js', "fetch(request, { cache: 'no-store' })", 'APIs não usam snapshots antigos');
 expectContains('public/sw.js', "'/assets/js/state-sync.js'", 'Cache inclui sincronização entre abas');

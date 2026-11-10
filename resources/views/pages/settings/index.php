@@ -73,8 +73,8 @@
   </div>
   <button class="btn btn-primary" @click="save">Salvar</button>
   <button class="btn btn-outline-secondary" @click="testMail">Testar e-mail</button>
-  <a class="btn btn-success" :href="Api.url('/api/admin/export-all')">Exportar todos os dados (Excel)</a>
-  <a class="btn btn-outline-secondary" :href="Api.url('/api/admin/backup')">Baixar backup do banco</a>
+  <a class="btn btn-success" data-no-loading :href="Api.url('/api/admin/export-all')"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar todos os dados (Excel)</a>
+  <a class="btn btn-outline-secondary" data-no-loading :href="Api.url('/api/admin/backup')"><i class="bi bi-database-down me-1"></i>Baixar backup do banco</a>
   <?php if (\App\Services\DataImportService::isAvailable()): ?>
   <hr>
   <h2 class="h6 mb-2">Importar exportação completa</h2>
