@@ -365,33 +365,56 @@ if (!empty($importedGift['id'])) {
         $importedGiftApi['json']['data'] ?? $importedGiftApi);
 }
 
-$missingIndustryPath = tempnam(sys_get_temp_dir(), 'brindes-missing-industry-');
-$missingIndustryBook = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-$missingIndustrySheet = $missingIndustryBook->getActiveSheet();
-$missingIndustrySheet->fromArray([[
+$autoIndustryName = 'ALTHAIA';
+$invalidIndustryName = 'INDUSTRIA DE LINHA INVALIDA';
+$autoIndustryPath = tempnam(sys_get_temp_dir(), 'brindes-auto-industry-');
+$autoIndustryBook = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+$autoIndustrySheet = $autoIndustryBook->getActiveSheet();
+$autoIndustrySheet->fromArray([[
     'codigo', 'nome', 'categoria', 'industria', 'local', 'fornecedor',
     'valor_unitario', 'estoque_minimo', 'quantidade_inicial', 'observacoes',
 ]], null, 'A1');
-$missingIndustrySheet->fromArray([[
-    'BRD-91002', 'Brinde sem indústria', 'Eletrônicos', '', '', 'Fornecedor X',
-    '12,50', 0, 0, 'Teste de validação da indústria',
-]], null, 'A2');
-(new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($missingIndustryBook))->save($missingIndustryPath);
-$missingIndustryBook->disconnectWorksheets();
-$missingIndustryUpload = upload($missingIndustryPath, 'modelo-importacao-brindes.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-$missingIndustryPreview = $admin->call('POST', '/api/import/items/preview', [], [], ['file' => $missingIndustryUpload]);
-$missingIndustryCommit = $admin->call('POST', '/api/import/items/commit', [], [], ['file' => $missingIndustryUpload]);
-$missingIndustryGift = Db::fetch('SELECT * FROM items WHERE code = ?', ['BRD-91002']);
-check('C6d importação rejeita brinde sem indústria e não o grava',
-    $missingIndustryPreview['status'] === 200
-        && ($missingIndustryPreview['json']['data']['rows'][0]['ok'] ?? true) === false
-        && in_array('Indústria obrigatória', $missingIndustryPreview['json']['data']['rows'][0]['errors'] ?? [], true)
-        && $missingIndustryCommit['status'] === 200
-        && (int) ($missingIndustryCommit['json']['data']['created'] ?? -1) === 0
-        && (int) ($missingIndustryCommit['json']['data']['skipped'] ?? -1) === 1
-        && $missingIndustryGift === null,
-    [$missingIndustryPreview['json']['data']['rows'][0] ?? null, $missingIndustryCommit['json']['data'] ?? null, $missingIndustryGift]);
-unlink($missingIndustryPath);
+$autoIndustrySheet->fromArray([
+    ['BRD-91002', 'Brinde ALTHAIA 1', 'Eletrônicos', $autoIndustryName, '', 'Fornecedor X', '12,50', 0, 0, 'Teste de criação de indústria'],
+    ['BRD-91003', 'Brinde ALTHAIA 2', 'Eletrônicos', $autoIndustryName, '', 'Fornecedor X', '15,00', 0, 0, 'Reutiliza a indústria criada'],
+    ['BRD-91004', 'Brinde sem indústria', 'Eletrônicos', '', '', 'Fornecedor X', '9,90', 0, 0, 'Indústria opcional'],
+    ['BRD-91005', '', 'Eletrônicos', $invalidIndustryName, '', 'Fornecedor X', '8,00', 0, 0, 'Linha inválida não deve cadastrar indústria'],
+], null, 'A2');
+(new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($autoIndustryBook))->save($autoIndustryPath);
+$autoIndustryBook->disconnectWorksheets();
+$autoIndustryUpload = upload($autoIndustryPath, 'modelo-import-usar.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+$autoIndustryPreview = $admin->call('POST', '/api/import/items/preview', [], [], ['file' => $autoIndustryUpload]);
+$beforeAutoIndustryCommit = Db::value('SELECT COUNT(*) FROM industries WHERE LOWER(name) = LOWER(?) AND deleted_at IS NULL', [$autoIndustryName]);
+$autoIndustryCommit = $admin->call('POST', '/api/import/items/commit', [], [], ['file' => $autoIndustryUpload]);
+$autoIndustry = Db::fetch('SELECT id FROM industries WHERE LOWER(name) = LOWER(?) AND deleted_at IS NULL', [$autoIndustryName]);
+$autoIndustryId = (int) ($autoIndustry['id'] ?? 0);
+$autoIndustryGift1 = Db::fetch('SELECT industry_id FROM items WHERE code = ?', ['BRD-91002']);
+$autoIndustryGift2 = Db::fetch('SELECT industry_id FROM items WHERE code = ?', ['BRD-91003']);
+$blankIndustryGift = Db::fetch('SELECT industry_id FROM items WHERE code = ?', ['BRD-91004']);
+$invalidIndustryGift = Db::fetch('SELECT id FROM items WHERE code = ?', ['BRD-91005']);
+$invalidIndustryCount = Db::value('SELECT COUNT(*) FROM industries WHERE LOWER(name) = LOWER(?) AND deleted_at IS NULL', [$invalidIndustryName]);
+$industryAuditCount = Db::value(
+    'SELECT COUNT(*) FROM audit_log WHERE action = ? AND entity_type = ? AND entity_id = ?',
+    ['create', 'industry', $autoIndustryId]
+);
+check('C6d importação cadastra indústria ausente uma vez e associa os brindes',
+    $autoIndustryPreview['status'] === 200
+        && ($autoIndustryPreview['json']['data']['rows'][0]['ok'] ?? false) === true
+        && ($autoIndustryPreview['json']['data']['rows'][1]['ok'] ?? false) === true
+        && ($autoIndustryPreview['json']['data']['rows'][2]['ok'] ?? false) === true
+        && ($autoIndustryPreview['json']['data']['rows'][3]['ok'] ?? true) === false
+        && (int) $beforeAutoIndustryCommit === 0
+        && $autoIndustryCommit['status'] === 200
+        && (int) ($autoIndustryCommit['json']['data']['created'] ?? -1) === 3
+        && (int) ($autoIndustryCommit['json']['data']['skipped'] ?? -1) === 1
+        && $autoIndustryId > 0
+        && (int) ($autoIndustryGift1['industry_id'] ?? 0) === $autoIndustryId
+        && (int) ($autoIndustryGift2['industry_id'] ?? 0) === $autoIndustryId
+        && $blankIndustryGift !== null && $blankIndustryGift['industry_id'] === null
+        && $invalidIndustryGift === null && (int) $invalidIndustryCount === 0
+        && (int) $industryAuditCount === 1,
+    [$autoIndustryPreview['json']['data']['rows'] ?? null, $autoIndustryCommit['json']['data'] ?? null]);
+unlink($autoIndustryPath);
 unlink($itemImportPath);
 
 $r = $admin->post('/api/industries', ['name' => 'Indústria Beta', 'contact_email' => 'invalido']);
