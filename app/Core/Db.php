@@ -253,7 +253,11 @@ final class Db
             }
             return false;
         }
-        return self::fetch("SHOW COLUMNS FROM `{$table}` LIKE ?", [$column]) !== null;
+        return self::fetch(
+            'SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS '
+            . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? LIMIT 1',
+            [$table, $column]
+        ) !== null;
     }
 
     private static function adapt(string $sql): string

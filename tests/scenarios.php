@@ -131,6 +131,8 @@ function onHand(int $itemId): int
 // ==========================================================================
 section('S. Catálogo de permissões');
 // ==========================================================================
+check('S0 metadados detectam colunas existentes e ausentes',
+    Db::hasColumn('items', 'industry_id') && !Db::hasColumn('items', '__coluna_inexistente__'));
 $slugs = Db::query('SELECT slug FROM permissions')->fetchAll(PDO::FETCH_COLUMN);
 $used = [];
 foreach ($app->router()->routes() as $route) {
