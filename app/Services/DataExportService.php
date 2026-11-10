@@ -176,7 +176,7 @@ final class DataExportService
 
     private static function writeValue($sheet, int $column, int $row, mixed $value, string $columnName): void
     {
-        $cell = $sheet->getCellByColumnAndRow($column, $row);
+        $cell = $sheet->getCell([$column, $row]);
         if ($value === null) {
             return;
         }
