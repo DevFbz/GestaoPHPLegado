@@ -17,7 +17,8 @@ ob_start(); ?>
           <a class="btn btn-outline-primary" :href="'<?= e(url('/estoque/transferencia')) ?>'">Transferir do CD</a>
           <?php endif; ?>
           <?php if (can('events.withdraw')): ?>
-          <a class="btn btn-primary" x-show="e.status==='aberto'" :href="'<?= e(url('/eventos')) ?>/' + e.id + '/modo-evento'">Modo Evento</a>
+          <a class="btn btn-primary" x-show="e.status==='aberto'" :href="'<?= e(url('/eventos')) ?>/' + e.id + '/modo-evento'"> <i class="bi bi-phone me-1"></i>Modo Evento</a>
+          <a class="btn btn-outline-primary" x-show="e.status==='aberto'" :href="'<?= e(url('/eventos')) ?>/' + e.id + '/modo-evento-pc'"><i class="bi bi-display me-1"></i>Modo Evento (PC)</a>
           <?php endif; ?>
           <?php if (can('events.manage')): ?>
           <button class="btn btn-outline-primary" x-show="e.status==='planejado'" @click="openEv">Abrir evento</button>

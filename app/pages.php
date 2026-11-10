@@ -55,6 +55,7 @@ return [
     ['path' => '/eventos', 'view' => 'pages/events/index', 'title' => 'Eventos', 'perm' => 'events.view'],
     ['path' => '/eventos/{id:\d+}', 'view' => 'pages/events/show', 'title' => 'Evento', 'perm' => 'events.view'],
     ['path' => '/eventos/{id:\d+}/modo-evento', 'view' => 'pages/events/mode', 'title' => 'Modo Evento', 'perm' => 'events.withdraw'],
+    ['path' => '/eventos/{id:\d+}/modo-evento-pc', 'view' => 'pages/events/mode-pc', 'title' => 'Modo Evento (PC)', 'perm' => 'events.withdraw'],
     ['path' => '/protocolos', 'view' => 'pages/deliveries/index', 'title' => 'Comprovantes', 'perm' => 'deliveries.view'],
     ['path' => '/protocolos/{id:\d+}', 'view' => 'pages/deliveries/show', 'title' => 'Protocolo', 'perm' => 'deliveries.view'],
     ['path' => '/regras-aprovacao', 'view' => 'pages/rules/index', 'title' => 'Regras de aprovação', 'perm' => 'rules.manage'],
