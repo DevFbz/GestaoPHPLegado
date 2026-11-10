@@ -195,6 +195,7 @@ final class Installer
         self::ensureStockMovementAttachment();
         self::ensureDeliverySignaturePng();
         self::ensureExitOrders();
+        self::ensureExitOrderEvidence();
         self::ensureItemIndustry();
         self::restrictCdOperations();
         $out('Perfil TRADE/Gestor atualizado: eventos, cadastros e retiradas.');
@@ -371,6 +372,45 @@ final class Installer
         }
     }
 
+    /** Adds signed withdrawal evidence to authorized stock exits. */
+    public static function ensureExitOrderEvidence(): void
+    {
+        if (!in_array('stock_exit_orders', self::tables(), true)
+            || (Db::hasColumn('stock_exit_orders', 'collector_name')
+                && Db::hasColumn('stock_exit_orders', 'collector_document')
+                && Db::hasColumn('stock_exit_orders', 'collector_signature_path')
+                && Db::hasColumn('stock_exit_orders', 'collector_signature_png'))) {
+            return;
+        }
+        if (Db::isSqlite()) {
+            if (!Db::hasColumn('stock_exit_orders', 'collector_name')) {
+                Db::pdo()->exec('ALTER TABLE stock_exit_orders ADD COLUMN collector_name TEXT NULL');
+            }
+            if (!Db::hasColumn('stock_exit_orders', 'collector_document')) {
+                Db::pdo()->exec('ALTER TABLE stock_exit_orders ADD COLUMN collector_document TEXT NULL');
+            }
+            if (!Db::hasColumn('stock_exit_orders', 'collector_signature_path')) {
+                Db::pdo()->exec('ALTER TABLE stock_exit_orders ADD COLUMN collector_signature_path TEXT NULL');
+            }
+            if (!Db::hasColumn('stock_exit_orders', 'collector_signature_png')) {
+                Db::pdo()->exec('ALTER TABLE stock_exit_orders ADD COLUMN collector_signature_png TEXT NULL');
+            }
+            return;
+        }
+        if (!Db::hasColumn('stock_exit_orders', 'collector_name')) {
+            Db::pdo()->exec('ALTER TABLE stock_exit_orders ADD COLUMN collector_name VARCHAR(150) NULL AFTER confirmed_at');
+        }
+        if (!Db::hasColumn('stock_exit_orders', 'collector_document')) {
+            Db::pdo()->exec('ALTER TABLE stock_exit_orders ADD COLUMN collector_document VARCHAR(30) NULL AFTER collector_name');
+        }
+        if (!Db::hasColumn('stock_exit_orders', 'collector_signature_path')) {
+            Db::pdo()->exec('ALTER TABLE stock_exit_orders ADD COLUMN collector_signature_path VARCHAR(255) NULL AFTER collector_document');
+        }
+        if (!Db::hasColumn('stock_exit_orders', 'collector_signature_png')) {
+            Db::pdo()->exec('ALTER TABLE stock_exit_orders ADD COLUMN collector_signature_png MEDIUMTEXT NULL AFTER collector_signature_path');
+        }
+    }
+
     /** Adds the optional industry association to existing item catalogs. */
     public static function ensureItemIndustry(): void
     {
@@ -466,6 +506,10 @@ final class Installer
                     authorized_at TEXT NOT NULL,
                     confirmed_by INTEGER NULL,
                     confirmed_at TEXT NULL,
+                    collector_name TEXT NULL,
+                    collector_document TEXT NULL,
+                    collector_signature_path TEXT NULL,
+                    collector_signature_png TEXT NULL,
                     movement_id INTEGER NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
@@ -491,6 +535,10 @@ final class Installer
                   authorized_at DATETIME NOT NULL,
                   confirmed_by INT UNSIGNED NULL,
                   confirmed_at DATETIME NULL,
+                  collector_name VARCHAR(150) NULL,
+                  collector_document VARCHAR(30) NULL,
+                  collector_signature_path VARCHAR(255) NULL,
+                  collector_signature_png MEDIUMTEXT NULL,
                   movement_id BIGINT UNSIGNED NULL,
                   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

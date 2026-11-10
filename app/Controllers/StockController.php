@@ -141,7 +141,29 @@ final class StockController
 
     public function confirmExit(Request $request): Response
     {
-        return Response::ok(ExitOrderService::confirm($request->id()));
+        return Response::ok(ExitOrderService::confirm($request->id(), $request->all()));
+    }
+
+    public function exitOrderSignature(Request $request): Response
+    {
+        $row = Db::fetch('SELECT collector_signature_path, collector_signature_png FROM stock_exit_orders WHERE id = ?', [$request->id()]);
+        if ($row === null || (empty($row['collector_signature_path']) && empty($row['collector_signature_png']))) {
+            throw \App\Core\HttpException::notFound('Não há assinatura arquivada nesta saída.');
+        }
+        $path = (string) ($row['collector_signature_path'] ?? '');
+        if ($path !== '' && is_file(\App\Services\ImageService::absolute($path))) {
+            return Response::file(\App\Services\ImageService::absolute($path), 'image/png', 86400);
+        }
+        $bin = base64_decode((string) $row['collector_signature_png'], true);
+        if ($bin === false || @getimagesizefromstring($bin) === false) {
+            throw \App\Core\HttpException::notFound('Assinatura arquivada inválida.');
+        }
+        return new Response(200, [
+            'Content-Type' => 'image/png',
+            'Content-Length' => (string) strlen($bin),
+            'Cache-Control' => 'private, max-age=86400',
+            'X-Content-Type-Options' => 'nosniff',
+        ], $bin);
     }
 
     public function exitOrderAttachment(Request $request): Response

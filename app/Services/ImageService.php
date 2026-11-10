@@ -50,22 +50,43 @@ final class ImageService
     }
 
     /** @return array{path:string, png:?string} */
-    public static function persistSignature(string $dataUrl): array
+    public static function persistSignature(string $dataUrl, bool $writeFile = true): array
     {
-        if (!preg_match('#^data:image/(png|jpeg);base64,([A-Za-z0-9+/=\s]+)$#', trim($dataUrl), $m)) {
+        $dataUrl = trim($dataUrl);
+        if (strlen($dataUrl) > 2000000) {
+            throw HttpException::validation(['signature' => 'A assinatura excede o tamanho permitido.']);
+        }
+        if (!preg_match('#^data:image/(png|jpeg);base64,([A-Za-z0-9+/=\s]+)$#', $dataUrl, $m)) {
             throw HttpException::validation(['signature' => 'Assinatura inválida. Assine no campo indicado.']);
         }
         $bin = base64_decode(preg_replace('/\s+/', '', $m[2]), true);
-        if ($bin === false || strlen($bin) < 400) {
+        if ($bin === false || strlen($bin) < 400 || strlen($bin) > 1500000) {
             throw HttpException::validation(['signature' => 'Assine no campo indicado antes de confirmar.']);
         }
+        if (function_exists('imagecreatefromstring')) {
+            $probe = @imagecreatefromstring($bin);
+            if (!$probe instanceof GdImage) {
+                throw HttpException::validation(['signature' => 'Assinatura inválida. Assine no campo indicado.']);
+            }
+            $width = imagesx($probe);
+            $height = imagesy($probe);
+            imagedestroy($probe);
+            if ($width > 2000 || $height > 2000 || ($width * $height) > 4000000) {
+                throw HttpException::validation(['signature' => 'A assinatura possui dimensões inválidas.']);
+            }
+        }
         $bin = self::flattenOnWhite($bin);
+        if (!$writeFile) {
+            return ['path' => '', 'png' => base64_encode($bin)];
+        }
         $path = 'signatures/' . bin2hex(random_bytes(12)) . '.png';
         $abs = self::absolute($path);
-        if (!is_dir(dirname($abs))) {
-            mkdir(dirname($abs), 0775, true);
+        if (!is_dir(dirname($abs)) && !mkdir(dirname($abs), 0775, true) && !is_dir(dirname($abs))) {
+            throw new \RuntimeException('Não foi possível preparar o armazenamento da assinatura.');
         }
-        file_put_contents($abs, $bin);
+        if (file_put_contents($abs, $bin) === false) {
+            throw new \RuntimeException('Não foi possível arquivar a assinatura.');
+        }
         return ['path' => $path, 'png' => base64_encode($bin)];
     }
 

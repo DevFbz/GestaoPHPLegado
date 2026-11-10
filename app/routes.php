@@ -122,6 +122,7 @@ return static function (Router $r): void {
     $r->get("/api/stock/exit-orders/{$id}", [StockController::class, 'showExitOrder'], ['perm' => ['stock.exit', 'stock.exit_confirm']]);
     $r->get("/api/stock/exit-orders/{$id}/qr", [StockController::class, 'exitOrderQr'], ['perm' => ['stock.exit', 'stock.exit_confirm']]);
     $r->get("/api/stock/exit-orders/{$id}/attachment", [StockController::class, 'exitOrderAttachment'], ['perm' => ['stock.exit', 'stock.exit_confirm']]);
+    $r->get("/api/stock/exit-orders/{$id}/proof", [StockController::class, 'exitOrderSignature'], ['perm' => 'stock.exit_confirm']);
     $r->post("/api/stock/exit-orders/{$id}/confirm", [StockController::class, 'confirmExit'], ['perm' => 'stock.exit_confirm', 'idempotent' => true]);
     $r->post('/api/stock/adjustments', [StockController::class, 'adjust'], ['perm' => 'stock.adjust', 'idempotent' => true]);
     $r->get('/api/stock/by-industry', [TradeController::class, 'byIndustry'], ['perm' => 'stock.view']);

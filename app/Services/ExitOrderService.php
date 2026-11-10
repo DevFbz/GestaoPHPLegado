@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Core\Auth;
 use App\Core\Db;
 use App\Core\HttpException;
+use App\Core\Validator;
 use App\Support\Present;
 
 /**
@@ -70,14 +71,23 @@ final class ExitOrderService
         });
     }
 
-    public static function confirm(int $id): array
+    public static function confirm(int $id, array $input = []): array
     {
         Auth::authorize(['stock.exit_confirm', 'stock.exit']);
-        return Db::transaction(function () use ($id) {
+        $data = Validator::validate($input, [
+            'collector_name' => 'required|string|max:150',
+            'collector_document' => 'required|string|max:30',
+            'signature' => 'required|string',
+        ]);
+        $signature = null;
+        try {
+            return Db::transaction(function () use ($id, $data, &$signature) {
+            try {
             $row = self::lock($id);
             if ($row['status'] !== 'autorizada') {
                 throw HttpException::conflict('EXIT_NOT_PENDING', 'Esta saída já foi confirmada ou cancelada.');
             }
+            $signature = ImageService::persistSignature((string) $data['signature'], false);
             $result = StockService::consumeReserved((int) $row['item_id'], (int) $row['qty'], [
                 'purpose' => $row['purpose'],
                 'recipient' => $row['recipient'],
@@ -94,13 +104,33 @@ final class ExitOrderService
                 'confirmed_by' => Auth::id(),
                 'confirmed_at' => now(),
                 'movement_id' => $movementId ?: null,
+                'collector_name' => trim((string) $data['collector_name']),
+                'collector_document' => trim((string) $data['collector_document']),
+                'collector_signature_path' => $signature['path'],
+                'collector_signature_png' => $signature['png'],
                 'updated_at' => now(),
             ], ['id' => $id]);
             Audit::log('stock_exit_confirm', 'stock_exit_order', $id, ['status' => 'autorizada'], [
                 'status' => 'confirmada', 'movement_id' => $movementId,
+                'collector_name' => trim((string) $data['collector_name']),
+                'collector_document' => trim((string) $data['collector_document']),
+                'signature_archived' => true,
             ], $row['code']);
             return self::payload($id);
-        });
+            } catch (\Throwable $e) {
+                if (is_array($signature) && !empty($signature['path'])) {
+                    ImageService::delete((string) $signature['path']);
+                    $signature = null;
+                }
+                throw $e;
+            }
+            });
+        } catch (\Throwable $e) {
+            if (is_array($signature) && !empty($signature['path'])) {
+                ImageService::delete((string) $signature['path']);
+            }
+            throw $e;
+        }
     }
 
     public static function cancel(int $id, string $reason = ''): array

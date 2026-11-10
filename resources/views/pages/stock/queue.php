@@ -32,22 +32,47 @@
           <div>Qtd: <b x-text="o.qty"></b> · <span x-text="o.purpose"></span></div>
           <div class="text-muted small" x-show="o.recipient" x-text="'Destino: ' + o.recipient"></div>
           <div class="text-muted small" x-text="o.status_label + ' · autorizado por ' + (o.authorized_by?.name || '')"></div>
-          <button class="btn btn-primary mt-2" type="button" :disabled="saving === o.id" @click="confirm(o)">
+          <button class="btn btn-primary mt-2" type="button" :disabled="saving === o.id" @click="openEvidence(o)">
             Confirmar saída
           </button>
+          <div class="text-muted small mt-2">A confirmação exige nome, documento e assinatura de quem retirou.</div>
         </div>
       </div>
     </div>
   </template>
+<div class="modal-backdrop" x-show="confirmTarget" x-cloak @click.self="closeEvidence">
+  <div class="card p-4" style="width:min(560px,calc(100vw - 2rem));max-height:90vh;overflow:auto">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h2 class="h5 mb-0">Comprovar retirada</h2>
+      <button type="button" class="btn-close" aria-label="Fechar" @click="closeEvidence"></button>
+    </div>
+    <p class="small text-muted">Informe quem recebeu fisicamente os brindes. O protocolo <b x-text="confirmTarget?.code"></b> ficará vinculado à assinatura e ao operador desta confirmação.</p>
+    <label class="form-label">Nome completo de quem retirou <span class="text-danger">*</span>
+      <input class="form-control" x-model.trim="form.collector_name" maxlength="150" autocomplete="name">
+    </label>
+    <label class="form-label mt-2">CPF/documento <span class="text-danger">*</span>
+      <input class="form-control" x-model.trim="form.collector_document" maxlength="30" autocomplete="off">
+    </label>
+    <label class="form-label mt-2">Assinatura de quem retirou <span class="text-danger">*</span></label>
+    <div class="border rounded bg-white p-1"><canvas id="exitSignature" style="width:100%;height:150px;touch-action:none"></canvas></div>
+    <button type="button" class="btn btn-link btn-sm px-0" @click="pad?.clear()">Limpar assinatura</button>
+    <div class="d-flex justify-content-end gap-2 mt-3">
+      <button type="button" class="btn btn-outline-secondary" @click="closeEvidence">Cancelar</button>
+      <button type="button" class="btn btn-primary" :disabled="saving === confirmTarget?.id" @click="confirm(confirmTarget)">Registrar retirada e baixar estoque</button>
+    </div>
+  </div>
+</div>
 </div>
 <?php
 $content = ob_get_clean();
 ob_start(); ?>
+<script src="<?= e(asset('vendor/signature_pad/signature_pad.umd.min.js')) ?>"></script>
 <script src="<?= e(asset('vendor/jsqr/jsQR.js')) ?>"></script>
 <script>
 function exitQueue() {
   return {
     rows: [], code: '', err: '', picked: null, saving: 0,
+    confirmTarget: null, pad: null, form: { collector_name: '', collector_document: '' },
     camOn: false, stream: null, camErr: '', timer: null,
     async load() {
       this.err = '';
@@ -113,13 +138,39 @@ function exitQueue() {
         UI.toast(e.message, 'err');
       }
     },
+    openEvidence(o) {
+      this.confirmTarget = o;
+      this.form = { collector_name: '', collector_document: '' };
+      this.pad = null;
+      this.$nextTick(() => {
+        const canvas = document.getElementById('exitSignature');
+        this.pad = UI.signaturePad(canvas);
+      });
+    },
+    closeEvidence() {
+      this.confirmTarget = null;
+      this.pad = null;
+    },
     async confirm(o) {
+      if (!o || !this.form.collector_name || !this.form.collector_document) {
+        UI.toast('Informe o nome e o documento de quem retirou.', 'err');
+        return;
+      }
+      if (!this.pad || this.pad.isEmpty()) {
+        UI.toast('A assinatura de quem retirou é obrigatória.', 'err');
+        return;
+      }
       this.saving = o.id;
       try {
-        await Api.post('/api/stock/exit-orders/' + o.id + '/confirm', {}, { idempotencyKey: Api.newKey() });
-        UI.toast('Saída confirmada. Estoque atualizado.', 'ok');
+        await Api.post('/api/stock/exit-orders/' + o.id + '/confirm', {
+          collector_name: this.form.collector_name,
+          collector_document: this.form.collector_document,
+          signature: this.pad.toDataURL('image/png')
+        }, { idempotencyKey: Api.newKey() });
+        UI.toast('Retirada registrada com protocolo e assinatura arquivados.', 'ok');
         this.rows = this.rows.filter(r => r.id !== o.id);
         if (this.picked && this.picked.id === o.id) this.picked = null;
+        this.closeEvidence();
       } catch (e) {
         UI.toast(e.message, 'err');
       }

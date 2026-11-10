@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Core\Auth;
 use App\Services\StockService;
 
 /**
@@ -157,6 +158,11 @@ final class Present
                 ? ['id' => (int) $o['confirmed_by'], 'name' => $o['confirmed_by_name'] ?? null]
                 : null,
             'confirmed_at' => $o['confirmed_at'] ?? null,
+            'collector_name' => Auth::can('stock.exit_confirm') ? ($o['collector_name'] ?? null) : null,
+            'collector_document' => Auth::can('stock.exit_confirm') ? ($o['collector_document'] ?? null) : null,
+            'collector_signature_url' => Auth::can('stock.exit_confirm')
+                && (!empty($o['collector_signature_path']) || !empty($o['collector_signature_png']))
+                ? url('/api/stock/exit-orders/' . $o['id'] . '/proof') : null,
             'movement_id' => !empty($o['movement_id']) ? (int) $o['movement_id'] : null,
             'qr_png' => \App\Services\QrService::pngDataUri($code, 5),
             'qr_url' => url('/api/stock/exit-orders/' . $o['id'] . '/qr'),
