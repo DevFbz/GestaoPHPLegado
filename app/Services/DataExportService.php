@@ -96,7 +96,7 @@ final class DataExportService
             $sheet->getStyle("A3:{$lastLetter}3")->applyFromArray(self::noteStyle());
 
             foreach ($columns as $columnIndex => $column) {
-                $cell = $sheet->getCellByColumnAndRow($columnIndex + 1, 4);
+                $cell = $sheet->getCell([$columnIndex + 1, 4]);
                 $cell->setValueExplicit(self::columnLabel($column), DataType::TYPE_STRING);
                 $cell->getStyle()->applyFromArray(self::headerStyle($blue));
                 $sheet->getColumnDimension(self::columnLetter($columnIndex + 1))->setWidth(self::columnWidth($column));
