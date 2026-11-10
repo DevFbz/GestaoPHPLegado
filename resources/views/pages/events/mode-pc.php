@@ -130,13 +130,21 @@ ob_start(); ?>
 function modoEventoPc(id) {
   return {
     eventName:'', industries:[], filtered:[], q:'', industry:null, lines:[], recv:'', email:'', pad:null, saving:false, done:null, key:Api.newKey(),
-    async init(){ const {data}=await Api.get('/api/events/'+id); this.eventName=data.name; this.industries=data.industries||[]; this.filtered=this.industries; },
+    async init(){
+      this.resetSignature();
+      if (!this._pageShowBound) {
+        this._pageShowBound = true;
+        window.addEventListener('pageshow', () => this.resetSignature());
+      }
+      const {data}=await Api.get('/api/events/'+id); this.eventName=data.name; this.industries=data.industries||[]; this.filtered=this.industries;
+    },
     filterInd(){ const q=this.q.toLowerCase(); this.filtered=this.industries.filter(i=>i.name.toLowerCase().includes(q)); },
-    async pickInd(i){ this.industry=i; this.lines=((await Api.get('/api/events/'+id+'/balance',{industry_id:i.id})).data||[]).map(l=>({...l,qty:0})); this.$nextTick(()=>{const c=document.getElementById('sigEvPc'); if(c)this.pad=UI.signaturePad(c);}); },
+    async pickInd(i){ this.resetSignature(); this.industry=i; this.lines=((await Api.get('/api/events/'+id+'/balance',{industry_id:i.id})).data||[]).map(l=>({...l,qty:0})); this.$nextTick(()=>{const c=document.getElementById('sigEvPc'); if(c)this.pad=UI.signaturePad(c);}); },
+    resetSignature(){ if(this.pad)this.pad.clear(); this.pad=null; const c=document.getElementById('sigEvPc'); if(c){const ctx=c.getContext('2d'); if(ctx)ctx.clearRect(0,0,c.width,c.height);} },
     totalQty(){ return this.lines.reduce((sum,l)=>sum+Number(l.qty||0),0); },
-    clear(){ if(this.pad)this.pad.clear(); },
+    clear(){ this.resetSignature(); },
     mailHint(done){ const a=(done.mail&&done.mail.addresses)||[]; if(done.mail&&done.mail.smtp&&a.length)return 'E-mail enviado para '+a.join(', ')+'.'; if(a.length)return 'Comprovante registrado para '+a.join(', ')+'.'; return 'Protocolo gerado. Informe um e-mail válido para receber o comprovante.'; },
-    async next(){this.done=null;this.industry=null;this.lines=[];this.recv='';this.email='';this.q='';this.filtered=this.industries;this.key=Api.newKey();await this.init();},
+    async next(){this.resetSignature();this.done=null;this.industry=null;this.lines=[];this.recv='';this.email='';this.q='';this.filtered=this.industries;this.key=Api.newKey();await this.init();},
     async confirm(){ const items=this.lines.filter(l=>l.qty>0).map(l=>({item_id:l.item.id,qty:l.qty})); if(!items.length){UI.toast('Informe as quantidades.','err');return;} if(!this.recv){UI.toast('Informe o nome.','err');return;} if(!this.email||!this.email.includes('@')){UI.toast('Informe o e-mail para enviar o comprovante.','err');return;} if(!this.pad||this.pad.isEmpty()){UI.toast('Assine no campo.','err');return;} this.saving=true;try{const {data}=await Api.postIdem('/api/events/'+id+'/withdrawals',{industry_id:this.industry.id,received_by_name:this.recv,received_by_email:this.email,items,signature:this.pad.toDataURL('image/png')},{idempotencyKey:this.key});this.done=data;}catch(e){UI.toast(e.message,'err');}this.saving=false;}
   };
 }

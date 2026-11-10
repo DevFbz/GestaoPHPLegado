@@ -55,6 +55,11 @@ function modoEvento(id) {
     eventName: '', industries: [], filtered: [], q: '', industry: null, lines: [], recv: '', email: '',
     pad: null, saving: false, done: null, key: Api.newKey(),
     async init() {
+      this.resetSignature();
+      if (!this._pageShowBound) {
+        this._pageShowBound = true;
+        window.addEventListener('pageshow', () => this.resetSignature());
+      }
       const { data } = await Api.get('/api/events/' + id);
       this.eventName = data.name;
       this.industries = data.industries || [];
@@ -65,6 +70,7 @@ function modoEvento(id) {
       this.filtered = this.industries.filter(i => i.name.toLowerCase().includes(q));
     },
     async pickInd(i) {
+      this.resetSignature();
       this.industry = i;
       this.lines = ((await Api.get('/api/events/' + id + '/balance', { industry_id: i.id })).data || []).map(l => ({ ...l, qty: 0 }));
       this.$nextTick(() => {
@@ -72,7 +78,16 @@ function modoEvento(id) {
         if (c) this.pad = UI.signaturePad(c);
       });
     },
-    clear() { this.pad && this.pad.clear(); },
+    resetSignature() {
+      if (this.pad) this.pad.clear();
+      this.pad = null;
+      const c = document.getElementById('sigEv');
+      if (c) {
+        const ctx = c.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, c.width, c.height);
+      }
+    },
+    clear() { this.resetSignature(); },
     mailHint(done) {
       if (!done) return '';
       const addrs = (done.mail && done.mail.addresses) || [];
@@ -80,7 +95,7 @@ function modoEvento(id) {
       if (addrs.length) return 'Comprovante registrado para ' + addrs.join(', ') + '. No servidor de produção, com SMTP, o e-mail sai na hora.';
       return 'Protocolo gerado. Informe um e-mail válido para receber o comprovante.';
     },
-    async next() { this.done = null; this.industry = null; this.lines = []; this.recv = ''; this.email = ''; this.key = Api.newKey(); this.q = ''; this.filtered = []; await this.init(); },
+    async next() { this.resetSignature(); this.done = null; this.industry = null; this.lines = []; this.recv = ''; this.email = ''; this.key = Api.newKey(); this.q = ''; this.filtered = []; await this.init(); },
     async confirm() {
       const items = this.lines.filter(l => l.qty > 0).map(l => ({ item_id: l.item.id, qty: l.qty }));
       if (!items.length) { UI.toast('Informe as quantidades.', 'err'); return; }
