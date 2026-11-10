@@ -19,6 +19,7 @@ use App\Core\Auth;
 use App\Core\Config;
 use App\Core\Db;
 use App\Core\HttpException;
+use App\Services\ImportService;
 use App\Services\StockService;
 use App\Support\Installer;
 
@@ -214,6 +215,27 @@ $r2 = $sol->login('sol@teste.local', 'Senha1234!');
 $r3 = $gestor->login('gestor@teste.local', 'Senha1234!');
 check('B4 novos usuários fazem login', $r1['status'] === 200 && $r2['status'] === 200 && $r3['status'] === 200, [$r1, $r2, $r3]);
 
+$opRevision = $op->get('/api/sync/revision');
+$adminRevision = $admin->get('/api/sync/revision');
+$syncCategory = 'SYNC-' . uuid();
+$syncWrite = $admin->post('/api/categories', ['name' => $syncCategory]);
+$opChanged = $op->get('/api/sync/revision?since=' . (int) ($opRevision['json']['data']['revision'] ?? 0));
+$opChangedFromZero = $op->get('/api/sync/revision?since=0');
+$adminChanged = $admin->get('/api/sync/revision?since=' . (int) ($adminRevision['json']['data']['revision'] ?? 0));
+check(
+    'B4a sincronização identifica alteração de outro usuário sem recarregar a sessão que gravou',
+    $opRevision['status'] === 200
+        && $adminRevision['status'] === 200
+        && $syncWrite['status'] === 201
+        && ($opChanged['json']['data']['changed'] ?? false) === true
+        && ($opChangedFromZero['json']['data']['changed'] ?? false) === true
+        && ($adminChanged['json']['data']['changed'] ?? true) === false
+        && (int) ($opChanged['json']['data']['revision'] ?? 0) > (int) ($opRevision['json']['data']['revision'] ?? 0),
+    [$opRevision, $syncWrite, $opChanged, $opChangedFromZero, $adminChanged]
+);
+$r = $guest->get('/api/sync/revision');
+check('B4b revisão de sincronização exige autenticação', $r['status'] === 401 && code($r) === 'UNAUTHENTICATED', $r);
+
 $r = $sol->post('/api/items', ['name' => 'X', 'category_id' => 1]);
 check('B5 Solicitante não cadastra brinde -> 403', $r['status'] === 403 && code($r) === 'FORBIDDEN', $r);
 
@@ -299,6 +321,48 @@ $deptId = $admin->post('/api/departments', ['name' => 'Comercial'])['json']['dat
 $indId = $admin->post('/api/industries', ['name' => 'Indústria Alfa', 'contact_email' => 'Contato@Alfa.example', 'cnpj' => '12.345.678/0001-90'])['json']['data']['id'] ?? 0;
 $supId = $admin->post('/api/suppliers', ['name' => 'Fornecedor X'])['json']['data']['id'] ?? 0;
 check('C6 cria departamento, indústria e fornecedor', $deptId > 0 && $indId > 0 && $supId > 0);
+
+$itemTemplatePath = tempnam(sys_get_temp_dir(), 'brindes-item-template-');
+file_put_contents($itemTemplatePath, ImportService::template('items'));
+$itemTemplateBook = \PhpOffice\PhpSpreadsheet\IOFactory::load($itemTemplatePath);
+$itemTemplateHeaders = $itemTemplateBook->getActiveSheet()->rangeToArray('1:1')[0] ?? [];
+$itemTemplateBook->disconnectWorksheets();
+unlink($itemTemplatePath);
+check('C6a modelo de brindes separa indústria de fornecedor',
+    in_array('industria', $itemTemplateHeaders, true) && in_array('fornecedor', $itemTemplateHeaders, true));
+
+$itemImportPath = tempnam(sys_get_temp_dir(), 'brindes-item-import-');
+$itemImportBook = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+$itemImportSheet = $itemImportBook->getActiveSheet();
+$itemImportSheet->fromArray([[
+    'codigo', 'nome', 'categoria', 'industria', 'local', 'fornecedor',
+    'valor_unitario', 'estoque_minimo', 'quantidade_inicial', 'observacoes',
+]], null, 'A1');
+$itemImportSheet->fromArray([[
+    'BRD - 91001', 'Brinde de teste da importação', 'Eletrônicos', 'Indústria Alfa', '', 'Fornecedor X',
+    '12,50', 0, 0, 'Teste de importação de brindes',
+]], null, 'A2');
+(new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($itemImportBook))->save($itemImportPath);
+$itemImportBook->disconnectWorksheets();
+$itemImportUpload = upload($itemImportPath, 'modelo-importacao-brindes.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+$itemImportPreview = $admin->call('POST', '/api/import/items/preview', [], [], ['file' => $itemImportUpload]);
+$itemImportResult = $admin->call('POST', '/api/import/items/commit', [], [], ['file' => $itemImportUpload]);
+$importedGift = Db::fetch('SELECT * FROM items WHERE code = ?', ['BRD-91001']);
+check('C6b importação do modelo associa indústria e fornecedor em campos independentes',
+    $itemImportPreview['status'] === 200
+        && ($itemImportPreview['json']['data']['rows'][0]['ok'] ?? false) === true
+        && $itemImportResult['status'] === 200
+        && (int) ($importedGift['industry_id'] ?? 0) === (int) $indId
+        && (int) ($importedGift['supplier_id'] ?? 0) === (int) $supId,
+    [$itemImportPreview['status'], $itemImportResult['status'], $importedGift]);
+if (!empty($importedGift['id'])) {
+    $importedGiftApi = $admin->get('/api/items/' . (int) $importedGift['id']);
+    check('C6c detalhe do brinde importado apresenta a indústria e o fornecedor',
+        ($importedGiftApi['json']['data']['industry']['id'] ?? null) === (int) $indId
+            && ($importedGiftApi['json']['data']['supplier']['id'] ?? null) === (int) $supId,
+        $importedGiftApi['json']['data'] ?? $importedGiftApi);
+}
+unlink($itemImportPath);
 
 $r = $admin->post('/api/industries', ['name' => 'Indústria Beta', 'contact_email' => 'invalido']);
 check('C7 e-mail inválido recusado', $r['status'] === 422 && isset($r['json']['error']['fields']['contact_email']), $r);
@@ -721,6 +785,168 @@ check('I7 [T12] alerta de estoque mínimo só uma vez no dia (por usuário)', $n
 $rep = $admin->get('/api/reports/stock');
 check('I8 relatório de estoque atual', $rep['status'] === 200 && isset($rep['json']['data']['columns'], $rep['json']['data']['rows'])
     && in_array('Indústria', $rep['json']['data']['columns'] ?? [], true), $rep);
+$xlsx = $admin->get('/api/reports/stock?format=xlsx');
+check('I8b exportação XLSX funciona no banco SQLite local', $xlsx['status'] === 200
+    && str_contains((string) ($xlsx['headers']['Content-Type'] ?? ''), 'spreadsheetml.sheet')
+    && str_starts_with((string) $xlsx['body'], "PK\x03\x04"), [$xlsx['status'], $xlsx['headers']]);
+$allExport = $admin->get('/api/admin/export-all');
+$allExportValid = $allExport['status'] === 200
+    && str_contains((string) ($allExport['headers']['Content-Type'] ?? ''), 'spreadsheetml.sheet')
+    && str_starts_with((string) $allExport['body'], "PK\x03\x04");
+$allExportSheets = [];
+$allExportUsersHeaders = [];
+$allExportHasRows = false;
+if ($allExportValid) {
+    $allExportPath = tempnam(sys_get_temp_dir(), 'brindes-export-');
+    file_put_contents($allExportPath, $allExport['body']);
+    $allExportBook = \PhpOffice\PhpSpreadsheet\IOFactory::load($allExportPath);
+    $allExportSheets = $allExportBook->getSheetNames();
+    $allExportUsersHeaders = $allExportBook->getSheetByName('users')?->rangeToArray('1:1')[0] ?? [];
+    $allExportHasRows = ($allExportBook->getSheetByName('items')?->getHighestRow() ?? 0) > 1
+        && ($allExportBook->getSheetByName('stock_movements')?->getHighestRow() ?? 0) > 1;
+    $allExportBook->disconnectWorksheets();
+    unlink($allExportPath);
+}
+check('I8c exportação completa gera planilha com todas as tabelas e registros sem hashes de senha',
+    $allExportValid
+        && count(array_diff(Installer::tables(), $allExportSheets)) === 0
+        && $allExportHasRows
+        && !in_array('password_hash', $allExportUsersHeaders, true)
+        && !in_array('reset_token', $allExportUsersHeaders, true),
+    [$allExport['status'], $allExportSheets, $allExportUsersHeaders]);
+$deniedAllExport = $sol->get('/api/admin/export-all');
+check('I8d exportação completa exige permissão administrativa', $deniedAllExport['status'] === 403, $deniedAllExport);
+
+$importAllPath = tempnam(sys_get_temp_dir(), 'brindes-import-');
+file_put_contents($importAllPath, $allExport['body']);
+$importAllBook = \PhpOffice\PhpSpreadsheet\IOFactory::load($importAllPath);
+$importCategorySheet = $importAllBook->getSheetByName('categories');
+$importCategoryHeaders = $importCategorySheet?->rangeToArray('1:1')[0] ?? [];
+$newCategoryId = (int) Db::value('SELECT MAX(id) FROM categories') + 1000;
+$newCategoryName = 'Categoria importada ' . uuid();
+$newCategoryRow = [];
+foreach ($importCategoryHeaders as $header) {
+    $newCategoryRow[] = match ((string) $header) {
+        'id' => $newCategoryId,
+        'name' => $newCategoryName,
+        'description' => 'Registro novo da exportação completa',
+        'active' => 1,
+        'created_at', 'updated_at' => date('Y-m-d H:i:s'),
+        default => null,
+    };
+}
+$importCategorySheet?->fromArray($newCategoryRow, null, 'A' . (($importCategorySheet?->getHighestRow() ?? 1) + 1), true);
+$sourceUsersSheet = $importAllBook->getSheetByName('users');
+$sourceUserHeaders = $sourceUsersSheet?->rangeToArray('1:1')[0] ?? [];
+$sourceUserId = (int) Db::value('SELECT MAX(id) FROM users') + 1000;
+$sourceUserRow = [];
+foreach ($sourceUserHeaders as $header) {
+    $sourceUserRow[] = match ((string) $header) {
+        'id' => $sourceUserId,
+        'email' => 'admin@brindes.local',
+        default => null,
+    };
+}
+$sourceUsersSheet?->fromArray($sourceUserRow, null, 'A' . (($sourceUsersSheet?->getHighestRow() ?? 1) + 1), true);
+$newItemId = (int) Db::value('SELECT MAX(id) FROM items') + 1000;
+$newItemCode = 'IMP-' . strtoupper(substr(uuid(), 0, 8));
+$itemsSheet = $importAllBook->getSheetByName('items');
+$itemHeaders = $itemsSheet?->rangeToArray('1:1')[0] ?? [];
+$itemRow = [];
+foreach ($itemHeaders as $header) {
+    $itemRow[] = match ((string) $header) {
+        'id' => $newItemId,
+        'code' => $newItemCode,
+        'name' => 'Brinde importado ' . uuid(),
+        'category_id' => $catId,
+        'kind' => 'fisico',
+        'unit_value' => '12.50',
+        'min_stock' => 0,
+        'status' => 'ativo',
+        'created_at', 'updated_at' => date('Y-m-d H:i:s'),
+        'created_by', 'updated_by' => $sourceUserId,
+        default => null,
+    };
+}
+$itemsSheet?->fromArray($itemRow, null, 'A' . (($itemsSheet?->getHighestRow() ?? 1) + 1), true);
+$conflictingItemRow = $itemRow;
+$conflictingItemRow[array_search('id', $itemHeaders, true)] = $newItemId + 1;
+$conflictingItemRow[array_search('name', $itemHeaders, true)] = 'Brinde com código conflitante ' . uuid();
+$itemsSheet?->fromArray($conflictingItemRow, null, 'A' . (($itemsSheet?->getHighestRow() ?? 1) + 1), true);
+$stockSheet = $importAllBook->getSheetByName('stock');
+$stockHeaders = $stockSheet?->rangeToArray('1:1')[0] ?? [];
+$stockRow = [];
+foreach ($stockHeaders as $header) {
+    $stockRow[] = match ((string) $header) {
+        'item_id' => $newItemId,
+        'qty_on_hand', 'qty_reserved' => 0,
+        'updated_at' => date('Y-m-d H:i:s'),
+        default => null,
+    };
+}
+$stockSheet?->fromArray($stockRow, null, 'A' . (($stockSheet?->getHighestRow() ?? 1) + 1), true);
+$importAllBook->getProperties()->setCreator('GestaoBrindes tests');
+(new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($importAllBook))->save($importAllPath);
+$importAllBook->disconnectWorksheets();
+putenv('OFFLINE_DATA_DIR=' . sys_get_temp_dir() . '/brindes-offline-import-tests');
+$adminHashBeforeImport = Db::value('SELECT password_hash FROM users WHERE id = 1');
+$importPreview = $admin->call('POST', '/api/admin/import-all/preview', [], [], [
+    'file' => upload($importAllPath, 'exportacao-completa.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+]);
+check('I8e prévia da importação completa identifica apenas registros novos',
+    $importPreview['status'] === 200
+        && (int) ($importPreview['json']['data']['tables']['categories']['new'] ?? 0) === 1
+        && (int) ($importPreview['json']['data']['tables']['items']['new'] ?? 0) === 2
+        && (int) ($importPreview['json']['data']['tables']['stock']['new'] ?? 0) === 1,
+    $importPreview);
+$importCommit = $admin->call('POST', '/api/admin/import-all/commit', [], [], [
+    'file' => upload($importAllPath, 'exportacao-completa.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+]);
+$importedCategory = Db::fetch('SELECT name, description FROM categories WHERE id = ?', [$newCategoryId]);
+$importedItem = Db::fetch('SELECT name, created_by FROM items WHERE id = ?', [$newItemId]);
+$importedStock = Db::fetch('SELECT item_id, qty_on_hand FROM stock WHERE item_id = ?', [$newItemId]);
+$importChecks = [
+    'http_ok' => $importCommit['status'] === 200,
+    'category_inserted' => (int) ($importCommit['json']['data']['tables']['categories']['inserted'] ?? 0) === 1,
+    'item_inserted' => (int) ($importCommit['json']['data']['tables']['items']['inserted'] ?? 0) === 1,
+    'unique_conflict_counted' => (int) ($importCommit['json']['data']['tables']['items']['conflict'] ?? 0) === 1,
+    'unique_conflict_not_a_missing_reference' => (int) ($importCommit['json']['data']['tables']['items']['missing_reference'] ?? 0) === 0,
+    'stock_inserted' => (int) ($importCommit['json']['data']['tables']['stock']['inserted'] ?? 0) === 1,
+    'category_values_preserved' => ($importedCategory['name'] ?? '') === $newCategoryName,
+    'user_reference_mapped' => (int) ($importedItem['created_by'] ?? 0) === 1,
+    'stock_reference_preserved' => (int) ($importedStock['item_id'] ?? 0) === $newItemId,
+    'authentication_unchanged' => Db::value('SELECT password_hash FROM users WHERE id = 1') === $adminHashBeforeImport,
+];
+check('I8f importação completa acrescenta registros novos sem substituir a base local',
+    !in_array(false, $importChecks, true),
+    $importChecks);
+$importAgain = $admin->call('POST', '/api/admin/import-all/commit', [], [], [
+    'file' => upload($importAllPath, 'exportacao-completa.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+]);
+check('I8g reimportação não duplica nem sobrescreve registros existentes',
+    $importAgain['status'] === 200
+        && (int) ($importAgain['json']['data']['inserted_rows'] ?? -1) === 0
+        && (int) Db::value('SELECT COUNT(*) FROM categories WHERE id = ?', [$newCategoryId]) === 1,
+    $importAgain);
+$deniedAllImport = $sol->call('POST', '/api/admin/import-all/preview', [], [], [
+    'file' => upload($importAllPath, 'exportacao-completa.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+]);
+check('I8h importação completa exige permissão administrativa', $deniedAllImport['status'] === 403, $deniedAllImport);
+$offlineSettings = $admin->get('/configuracoes');
+check('I8i configurações offline mostram botão e prévia para importar Excel completo',
+    $offlineSettings['status'] === 200
+        && str_contains($offlineSettings['body'], 'Importar exportação completa')
+        && str_contains($offlineSettings['body'], 'Pré-visualizar importação'),
+    $offlineSettings['status']);
+putenv('OFFLINE_DATA_DIR');
+$webSettings = $admin->get('/configuracoes');
+$webImport = $admin->call('POST', '/api/admin/import-all/preview', [], [], [
+    'file' => upload($importAllPath, 'exportacao-completa.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+]);
+check('I8j importação completa não aparece nem funciona fora do executável offline',
+    !str_contains($webSettings['body'], 'Importar exportação completa') && $webImport['status'] === 404,
+    [$webSettings['status'], $webImport['status']]);
+@unlink($importAllPath);
 
 // ==========================================================================
 section('T. TRADE — compra, CD, estoque por indústria, transferência, QR');

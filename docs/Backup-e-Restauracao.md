@@ -16,6 +16,10 @@ Este procedimento foi testado em 18/09/2026 (dump → banco vazio → conferênc
 4. Guarde o arquivo em local seguro (não no mesmo servidor, se possível).
 5. No mesmo dia, copie a pasta `storage/` (FTP/SFTP): pelo menos `storage/uploads`, `storage/signatures`, `storage/pdf`.
 
+Na tela **Configurações**, o administrador também pode usar **Exportar todos os dados (Excel)** para baixar uma planilha com uma aba por tabela e os registros do banco. Campos de autenticação e tokens são omitidos. Essa planilha serve para consulta; para restauração completa, use **Baixar backup do banco** (SQL), que preserva o esquema e os dados. Arquivos enviados continuam na pasta `storage/` e precisam ser copiados separadamente.
+
+No executável offline, **Configurações > Importar exportação completa** aceita o Excel gerado pela versão web. A prévia informa os registros novos; a importação acrescenta apenas registros que não conflitam com a base SQLite local e não atualiza nem apaga registros existentes. Usuários, senhas, perfis, permissões e tentativas de login não são importados. Registros cujo vínculo de usuário não existe no tablet podem ser ignorados. Faça também um backup do tablet antes de uma importação importante.
+
 ### Pelo agendamento (automático)
 
 Cron diário (já descrito no Manual de Instalação):

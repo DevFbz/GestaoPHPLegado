@@ -220,6 +220,9 @@
   }
 
   global.UI = { toast, fieldErrors, clearErrors, confirmDialog, confirm: confirmDialog, purgeDialog, qs, debounce, badge, pager, catchApi, signaturePad, initNotifications };
+  global.addEventListener('brindes:data-stale', () => {
+    toast('Outra pessoa alterou os dados. Atualize a página para carregar a versão mais recente.', 'info');
+  });
   document.addEventListener('DOMContentLoaded', () => {
     initNavigationLoading();
     initRefreshButton();

@@ -18,12 +18,13 @@ use Throwable;
  */
 final class ItemService
 {
-    public const SELECT = 'SELECT i.*, c.name AS category_name, l.name AS location_name, sp.name AS supplier_name,
+    public const SELECT = 'SELECT i.*, c.name AS category_name, ind.name AS industry_name, l.name AS location_name, sp.name AS supplier_name,
             s.qty_on_hand, s.qty_reserved';
 
     public const FROM = 'FROM items i
        LEFT JOIN stock s ON s.item_id = i.id
        LEFT JOIN categories c ON c.id = i.category_id
+       LEFT JOIN industries ind ON ind.id = i.industry_id
        LEFT JOIN locations l ON l.id = i.location_id
        LEFT JOIN suppliers sp ON sp.id = i.supplier_id';
 
@@ -42,6 +43,7 @@ final class ItemService
             'name' => "{$req}|string|max:150",
             'description' => 'sometimes|nullable|string|max:5000',
             'category_id' => "{$req}|int|exists:categories",
+            'industry_id' => 'sometimes|nullable|int|exists:industries',
             'location_id' => 'sometimes|nullable|int|exists:locations',
             'supplier_id' => 'sometimes|nullable|int|exists:suppliers',
             'unit_value' => 'sometimes|nullable|numeric|min:0|max:9999999999',

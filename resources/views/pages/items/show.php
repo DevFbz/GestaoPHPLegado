@@ -31,6 +31,7 @@ ob_start(); ?>
       </div>
       <div class="card card-body mb-3">
         <div><b>Categoria:</b> <span x-text="it.category?.name || '—'"></span></div>
+        <div><b>Indústria:</b> <span x-text="it.industry?.name || '—'"></span></div>
         <div><b>Local:</b> <span x-text="it.location?.name || '—'"></span></div>
         <div><b>Fornecedor:</b> <span x-text="it.supplier?.name || '—'"></span></div>
         <div><b>Mínimo:</b> <span x-text="it.min_stock"></span></div>

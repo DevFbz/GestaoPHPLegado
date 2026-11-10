@@ -31,6 +31,13 @@ ob_start(); ?>
         </select>
       </div>
       <div class="col-md-4">
+        <label class="form-label">Indústria</label>
+        <select class="form-select" x-model="f.industry_id">
+          <option value="">—</option>
+          <template x-for="c in inds" :key="c.id"><option :value="c.id" x-text="c.name"></option></template>
+        </select>
+      </div>
+      <div class="col-md-4">
         <label class="form-label">Fornecedor</label>
         <select class="form-select" x-model="f.supplier_id">
           <option value="">—</option>
@@ -99,18 +106,18 @@ ob_start(); ?>
 <script>
 function itemForm(id) {
   return {
-    id, nextCode: '', cats: [], locs: [], sups: [], photo: null, saving: false,
-    f: { code: '', name: '', category_id: '', location_id: '', supplier_id: '', kind: 'fisico', unit_value: '', min_stock: 0, status: 'ativo', entry_date: '', description: '', notes: '', initial_quantity: 0, thumb_url: null },
+    id, nextCode: '', cats: [], inds: [], locs: [], sups: [], photo: null, saving: false,
+    f: { code: '', name: '', category_id: '', industry_id: '', location_id: '', supplier_id: '', kind: 'fisico', unit_value: '', min_stock: 0, status: 'ativo', entry_date: '', description: '', notes: '', initial_quantity: 0, thumb_url: null },
     async init() {
-      const [c, l, s] = await Promise.all([
-        Api.get('/api/categories', { all: 1 }), Api.get('/api/locations', { all: 1 }), Api.get('/api/suppliers', { all: 1 })
+      const [c, i, l, s] = await Promise.all([
+        Api.get('/api/categories', { all: 1 }), Api.get('/api/industries', { all: 1 }), Api.get('/api/locations', { all: 1 }), Api.get('/api/suppliers', { all: 1 })
       ]);
-      this.cats = c.data; this.locs = l.data; this.sups = s.data;
+      this.cats = c.data; this.inds = i.data; this.locs = l.data; this.sups = s.data;
       if (id) {
         const { data } = await Api.get('/api/items/' + id);
         this.f = {
           code: data.code, name: data.name, category_id: data.category?.id || '', location_id: data.location?.id || '',
-          supplier_id: data.supplier?.id || '', kind: data.kind || 'fisico', unit_value: data.unit_value ?? '', min_stock: data.min_stock,
+          industry_id: data.industry?.id || '', supplier_id: data.supplier?.id || '', kind: data.kind || 'fisico', unit_value: data.unit_value ?? '', min_stock: data.min_stock,
           status: data.status, entry_date: data.entry_date || '', description: data.description || '', notes: data.notes || '',
           thumb_url: data.thumb_url
         };
@@ -121,7 +128,7 @@ function itemForm(id) {
     },
     body() {
       const b = { ...this.f };
-      ['category_id','location_id','supplier_id'].forEach(k => { b[k] = b[k] ? Number(b[k]) : null; });
+      ['category_id','industry_id','location_id','supplier_id'].forEach(k => { b[k] = b[k] ? Number(b[k]) : null; });
       b.min_stock = Number(b.min_stock || 0);
       if (this.f.initial_quantity) b.initial_quantity = Number(this.f.initial_quantity);
       return b;

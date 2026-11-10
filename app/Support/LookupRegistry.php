@@ -66,6 +66,7 @@ final class LookupRegistry
                 'fields' => self::CONTACT_FIELDS, 'labels' => self::CONTACT_LABELS,
                 'search' => ['name', 'cnpj', 'contact_name', 'contact_email'],
                 'references' => [
+                    ['items', 'industry_id', 'brinde(s)'],
                     ['requests', 'industry_id', 'solicitação(ões)'],
                     ['event_allocations', 'industry_id', 'cota(s) de evento'],
                     ['deliveries', 'industry_id', 'protocolo(s)'],

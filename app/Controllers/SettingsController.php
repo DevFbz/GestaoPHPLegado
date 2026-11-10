@@ -9,6 +9,8 @@ use App\Core\Request;
 use App\Core\Response;
 use App\Core\Validator;
 use App\Services\Audit;
+use App\Services\DataExportService;
+use App\Services\DataImportService;
 use App\Services\ImageService;
 use App\Services\SettingsService;
 
@@ -147,5 +149,20 @@ final class SettingsController
     {
         $path = \App\Services\BackupService::create();
         return Response::file($path, 'application/sql', 0, basename($path));
+    }
+
+    public function exportAll(Request $request): Response
+    {
+        return DataExportService::exportAll();
+    }
+
+    public function previewImportAll(Request $request): Response
+    {
+        return Response::ok(DataImportService::preview($request->file('file') ?? []));
+    }
+
+    public function importAll(Request $request): Response
+    {
+        return Response::ok(DataImportService::import($request->file('file') ?? []));
     }
 }

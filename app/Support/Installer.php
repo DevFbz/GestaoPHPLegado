@@ -187,6 +187,7 @@ final class Installer
         self::ensureStockMovementAttachment();
         self::ensureDeliverySignaturePng();
         self::ensureExitOrders();
+        self::ensureItemIndustry();
         self::restrictCdOperations();
         $out('Perfil TRADE/Gestor atualizado: eventos, cadastros e retiradas.');
     }
@@ -360,6 +361,24 @@ final class Installer
         } else {
             Db::pdo()->exec('ALTER TABLE deliveries ADD COLUMN signature_png MEDIUMTEXT NULL AFTER signature_path');
         }
+    }
+
+    /** Adds the optional industry association to existing item catalogs. */
+    public static function ensureItemIndustry(): void
+    {
+        if (!in_array('items', self::tables(), true) || Db::hasColumn('items', 'industry_id')) {
+            return;
+        }
+        if (Db::isSqlite()) {
+            Db::pdo()->exec('ALTER TABLE items ADD COLUMN industry_id INTEGER NULL REFERENCES industries(id)');
+            Db::pdo()->exec('CREATE INDEX IF NOT EXISTS idx_items_industry ON items (industry_id)');
+            return;
+        }
+        Db::pdo()->exec(
+            'ALTER TABLE items ADD COLUMN industry_id INT UNSIGNED NULL AFTER supplier_id, '
+            . 'ADD KEY idx_items_industry (industry_id), '
+            . 'ADD CONSTRAINT fk_items_industry FOREIGN KEY (industry_id) REFERENCES industries (id)'
+        );
     }
 
     /** CD/Estoque: no nova solicitação, no cadastro menu, no entregas internas. */

@@ -76,7 +76,7 @@ ob_start(); ?>
       const next = new URLSearchParams(location.search).get('next');
       location.href = Api.url(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
     } catch (e) {
-      if (e && e.fields) {
+      if (e && e.fields && Object.keys(e.fields).length > 0) {
         Object.entries(e.fields).forEach(([k, v]) => setFieldError(k, v));
       } else {
         errEl.textContent = e.message || 'Erro ao fazer login. Tente novamente.';

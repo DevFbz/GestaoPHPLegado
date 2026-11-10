@@ -73,14 +73,24 @@
   </div>
   <button class="btn btn-primary" @click="save">Salvar</button>
   <button class="btn btn-outline-secondary" @click="testMail">Testar e-mail</button>
+  <a class="btn btn-success" :href="Api.url('/api/admin/export-all')">Exportar todos os dados (Excel)</a>
   <a class="btn btn-outline-secondary" :href="Api.url('/api/admin/backup')">Baixar backup do banco</a>
-  <?php if (\App\Core\Auth::isAdmin()): ?>
-    <hr>
-    <div class="alert alert-danger mt-3">
-      <strong>Zerar ambiente</strong>
-      <p class="mb-2">Apaga brindes, estoque, movimentações, solicitações, eventos e cadastros operacionais. As contas de acesso e permissões são preservadas.</p>
-      <button class="btn btn-danger" @click="resetData">Zerar todos os dados</button>
-    </div>
+  <?php if (\App\Services\DataImportService::isAvailable()): ?>
+  <hr>
+  <h2 class="h6 mb-2">Importar exportação completa</h2>
+  <p class="small text-muted">Selecione o Excel exportado pela versão web. A prévia mostra os registros novos; os dados locais existentes não serão alterados.</p>
+  <div class="mb-2"><input class="form-control" type="file" accept=".xlsx" @change="importFile=$event.target.files[0]||null;importPreview=null;importResult=null"></div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button class="btn btn-outline-primary" type="button" @click="previewImport" :disabled="!importFile||importBusy">Pré-visualizar importação</button>
+    <button class="btn btn-primary" type="button" @click="importAll" :disabled="!importPreview||importBusy">Importar registros novos</button>
+  </div>
+  <div class="alert alert-info py-2 mt-3 mb-0 small" x-show="importPreview">
+    Registros novos: <strong x-text="importPreview?.new_rows ?? 0"></strong> · já existentes: <strong x-text="importPreview?.already_present_rows ?? 0"></strong>.
+    Usuários, senhas, perfis e permissões não são importados. Registros vinculados a usuários ausentes neste tablet podem ser ignorados.
+  </div>
+  <div class="alert alert-success py-2 mt-3 mb-0 small" x-show="importResult">
+    Importados: <strong x-text="importResult?.inserted_rows ?? 0"></strong> · ignorados por duplicidade ou vínculo ausente: <strong x-text="importResult?.skipped_rows ?? 0"></strong>.
+  </div>
   <?php endif; ?>
 </div>
 <?php
@@ -89,7 +99,7 @@ ob_start(); ?>
 <script>
 function settingsPage() {
   return {
-    f: {}, logo: null, alertText: '',
+    f: {}, logo: null, alertText: '', importFile: null, importPreview: null, importResult: null, importBusy: false,
     async load() {
       this.f = (await Api.get('/api/settings')).data;
       this.alertText = (this.f.alert_emails || []).join(', ');
@@ -141,17 +151,32 @@ function settingsPage() {
         language: 'pt_BR'
       }, null, 2);
     },
-    async resetData() {
-      if (!confirm('Tem certeza? Todos os dados operacionais serão apagados definitivamente.')) return;
-      try {
-        const { data } = await Api.post('/api/admin/reset-data');
-        UI.toast(data.message, 'ok');
-        setTimeout(() => location.reload(), 500);
-      } catch (e) { UI.toast(e.message, 'err'); }
-    },
+
     async testMail() {
       try { const { data } = await Api.post('/api/settings/test-email'); UI.toast(data.message, 'ok'); }
       catch (e) { UI.toast(e.message, 'err'); }
+    },
+    async previewImport() {
+      if (!this.importFile) return;
+      this.importBusy = true;
+      try {
+        const fd = new FormData(); fd.append('file', this.importFile);
+        const { data } = await Api.upload('/api/admin/import-all/preview', fd);
+        this.importPreview = data; this.importResult = null;
+      } catch (e) { UI.toast(e.message, 'err'); }
+      finally { this.importBusy = false; }
+    },
+    async importAll() {
+      if (!this.importFile || !this.importPreview) return;
+      if (!confirm('Importar somente os registros novos? Os dados locais existentes serão preservados.')) return;
+      this.importBusy = true;
+      try {
+        const fd = new FormData(); fd.append('file', this.importFile);
+        const { data } = await Api.upload('/api/admin/import-all/commit', fd);
+        this.importResult = data; this.importPreview = null;
+        UI.toast('Importação concluída.', 'ok');
+      } catch (e) { UI.toast(e.message, 'err'); }
+      finally { this.importBusy = false; }
     }
   };
 }

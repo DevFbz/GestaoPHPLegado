@@ -20,6 +20,7 @@ use App\Controllers\RulesController;
 use App\Controllers\SearchController;
 use App\Controllers\SettingsController;
 use App\Controllers\StockController;
+use App\Controllers\SyncController;
 use App\Controllers\TradeController;
 use App\Controllers\UsersController;
 use App\Core\Router;
@@ -33,6 +34,7 @@ return static function (Router $r): void {
 
     // --- Health -------------------------------------------------------
     $r->get('/api/health', [HealthController::class, 'show'], ['public' => true]);
+    $r->get('/api/sync/revision', [SyncController::class, 'revision']);
 
     // --- Auth ---------------------------------------------------------
     $r->get('/api/auth/csrf', [AuthController::class, 'csrf'], ['public' => true]);
@@ -53,7 +55,9 @@ return static function (Router $r): void {
     $r->delete('/api/settings/logo', [SettingsController::class, 'deleteLogo'], ['perm' => 'settings.manage']);
     $r->post('/api/settings/test-email', [SettingsController::class, 'testEmail'], ['perm' => 'settings.manage']);
     $r->get('/api/admin/backup', [SettingsController::class, 'backup'], ['perm' => 'settings.manage']);
-    $r->post('/api/admin/reset-data', [SettingsController::class, 'resetData'], ['perm' => 'settings.manage']);
+    $r->get('/api/admin/export-all', [SettingsController::class, 'exportAll'], ['perm' => 'settings.manage']);
+    $r->post('/api/admin/import-all/preview', [SettingsController::class, 'previewImportAll'], ['perm' => 'settings.manage']);
+    $r->post('/api/admin/import-all/commit', [SettingsController::class, 'importAll'], ['perm' => 'settings.manage']);
 
     // --- Lecom --------------------------------------------------------
     $r->post('/api/lecom/process/start', [LecomController::class, 'start'], ['perm' => 'requests.create', 'idempotent' => true]);

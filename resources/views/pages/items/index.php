@@ -75,6 +75,7 @@ ob_start(); ?>
             </td>
             <td>
               <a class="fw-semibold text-dark" :href="'<?= e(url('/brindes')) ?>/' + it.id" x-text="it.name"></a>
+              <div class="small text-muted" x-show="it.industry" x-text="it.industry ? it.industry.name : ''"></div>
               <div class="small text-muted" x-show="it.supplier" x-text="it.supplier ? it.supplier.name : ''"></div>
             </td>
             <td x-text="it.category ? it.category.name : '—'" class="small text-muted"></td>

@@ -61,6 +61,7 @@ final class Present
             'name' => $row['name'],
             'description' => $row['description'],
             'category' => $row['category_id'] ? ['id' => (int) $row['category_id'], 'name' => $row['category_name'] ?? null] : null,
+            'industry' => !empty($row['industry_id']) ? ['id' => (int) $row['industry_id'], 'name' => $row['industry_name'] ?? null] : null,
             'location' => $row['location_id'] ? ['id' => (int) $row['location_id'], 'name' => $row['location_name'] ?? null] : null,
             'supplier' => $row['supplier_id'] ? ['id' => (int) $row['supplier_id'], 'name' => $row['supplier_name'] ?? null] : null,
             'unit_value' => $unit,

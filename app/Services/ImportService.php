@@ -99,10 +99,18 @@ final class ImportService
             if (!$catId) {
                 $msgs[] = 'Categoria não encontrada: ' . $catName;
             }
+            $industryName = $d['industria'] ?? $d['industry'] ?? '';
+            $industryId = self::lookupId('industries', $industryName);
+            if (trim($industryName) !== '' && !$industryId) {
+                $msgs[] = 'Indústria não encontrada: ' . trim($industryName);
+            }
+            $code = trim((string) ($d['codigo'] ?? $d['code'] ?? ''));
+            $code = preg_replace('/\s+/', '', $code) ?? $code;
             $payload = [
-                'code' => $d['codigo'] ?? $d['code'] ?? null,
+                'code' => $code !== '' ? $code : null,
                 'name' => $name,
                 'category_id' => $catId,
+                'industry_id' => $industryId,
                 'location_id' => self::lookupId('locations', $d['local'] ?? $d['location'] ?? ''),
                 'supplier_id' => self::lookupId('suppliers', $d['fornecedor'] ?? $d['supplier'] ?? ''),
                 'unit_value' => $d['valor_unitario'] ?? $d['valor'] ?? null,
@@ -160,7 +168,7 @@ final class ImportService
         if ($name === '') {
             return null;
         }
-        $id = Db::value("SELECT id FROM `{$table}` WHERE name = ? AND deleted_at IS NULL", [$name]);
+        $id = Db::value("SELECT id FROM `{$table}` WHERE TRIM(name) = ? AND deleted_at IS NULL", [$name]);
         return $id ? (int) $id : null;
     }
 

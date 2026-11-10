@@ -176,6 +176,7 @@ CREATE TABLE items (
   category_id  INT UNSIGNED  NOT NULL,
   location_id  INT UNSIGNED  NULL,
   supplier_id  INT UNSIGNED  NULL,
+  industry_id  INT UNSIGNED  NULL,
   kind         ENUM('fisico','voucher','cartao','outro') NOT NULL DEFAULT 'fisico',
   unit_value   DECIMAL(12,2) NULL,
   min_stock    INT UNSIGNED  NOT NULL DEFAULT 0,
@@ -196,10 +197,12 @@ CREATE TABLE items (
   KEY idx_items_category (category_id),
   KEY idx_items_location (location_id),
   KEY idx_items_supplier (supplier_id),
+  KEY idx_items_industry (industry_id),
   KEY idx_items_status (status, deleted_at),
   CONSTRAINT fk_items_category FOREIGN KEY (category_id) REFERENCES categories (id),
   CONSTRAINT fk_items_location FOREIGN KEY (location_id) REFERENCES locations (id),
   CONSTRAINT fk_items_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers (id),
+  CONSTRAINT fk_items_industry FOREIGN KEY (industry_id) REFERENCES industries (id),
   CONSTRAINT chk_items_unit_value CHECK (unit_value IS NULL OR unit_value >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
