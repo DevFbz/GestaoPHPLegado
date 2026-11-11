@@ -17,7 +17,6 @@ $color = e($settings['primary_color'] ?? '#2563EB');
   <style>:root { --brand-primary: <?= $color ?>; } body { background:#0f172a; color:#fff; }</style>
 </head>
 <body class="event-kiosk">
-<?php include BASE_PATH . '/resources/views/partials/homolog-test-modal.php'; ?>
   <?= $content ?? '' ?>
 <script src="<?= e(asset('js/api.js')) ?>"></script>
 <script src="<?= e(asset('js/app.js')) ?>"></script>

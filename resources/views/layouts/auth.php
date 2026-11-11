@@ -26,7 +26,6 @@ $company = e($settings['company_name'] ?? 'Controle de Brindes');
   <style>:root { --brand-primary: <?= $color ?>; }</style>
 </head>
 <body>
-<?php include BASE_PATH . '/resources/views/partials/homolog-test-modal.php'; ?>
 <a class="skip-link" href="#login-title">Ir para o formulário de acesso</a>
 <div class="auth-wrap">
   <div class="auth-bg-watermark" aria-hidden="true">
