@@ -22,6 +22,13 @@ ob_start(); ?>
   .event-pc-industry.active { background:var(--brand-primary-light); color:var(--brand-primary-dark); box-shadow:inset 3px 0 var(--brand-primary); }
   .event-pc-industry-name { font-weight:700; font-size:.9rem; }
   .event-pc-industry-saldo { font-size:.74rem; color:#667085; white-space:nowrap; }
+  .event-pc-saldo-badge { display:inline-flex; align-items:center; gap:4px; border-radius:999px; padding:4px 7px; font-size:.67rem; font-weight:800; white-space:nowrap; }
+  .saldo-critical { background:#fee4e2; color:#b42318; }
+  .saldo-warning { background:#fef0c7; color:#b54708; }
+  .saldo-ok { background:#dcfae6; color:#027a48; }
+  .event-pc-legend { display:flex; gap:8px; flex-wrap:wrap; padding:0 12px 12px; color:#667085; font-size:.68rem; }
+  .event-pc-legend span { display:inline-flex; align-items:center; gap:4px; }
+  .event-pc-legend i { width:8px; height:8px; border-radius:50%; }
   .event-pc-center { min-width:0; }
   .event-pc-empty { min-height:390px; display:grid; place-items:center; text-align:center; color:#667085; padding:50px; }
   .event-pc-empty-icon { width:64px; height:64px; border-radius:20px; display:grid; place-items:center; margin:0 auto 14px; background:var(--brand-primary-light); color:var(--brand-primary); font-size:28px; }
@@ -86,11 +93,12 @@ ob_start(); ?>
         <div class="event-pc-industries">
           <template x-for="i in filtered" :key="i.id">
             <button type="button" class="event-pc-industry" :class="industry && industry.id===i.id ? 'active' : ''" @click="pickInd(i)">
-              <span class="event-pc-industry-name" x-text="i.name"></span><span class="event-pc-industry-saldo" x-text="i.saldo + ' un.'"></span>
+              <span class="event-pc-industry-name" x-text="i.name"></span><span class="event-pc-saldo-badge" :class="'saldo-'+stockLevel(i.saldo).class"><i class="bi" :class="stockLevel(i.saldo).icon"></i><span x-text="i.saldo"></span></span>
             </button>
           </template>
           <p class="small text-muted p-2 mb-0" x-show="!filtered.length">Nenhuma indústria encontrada.</p>
         </div>
+        <div class="event-pc-legend"><span>Saldo:</span><span><i class="saldo-critical"></i>até 5</span><span><i class="saldo-warning"></i>6 a 10</span><span><i class="saldo-ok"></i>acima de 10</span></div>
       </aside>
 
       <main class="event-pc-card event-pc-center">
@@ -102,7 +110,7 @@ ob_start(); ?>
             <div class="event-pc-selected"><div><h2 x-text="industry.name"></h2><p>2. Informe os brindes e quantidades da retirada</p></div><div class="event-pc-summary"><span class="event-pc-pill"><i class="bi bi-box me-1"></i><span x-text="lines.length"></span> itens</span><span class="event-pc-pill"><i class="bi bi-clipboard-check me-1"></i><span x-text="totalQty()"></span> unidades</span></div></div>
             <div class="event-pc-items">
               <template x-for="line in lines" :key="line.item.id">
-                <article class="event-pc-item"><div class="event-pc-item-name" x-text="line.item.name"></div><div class="event-pc-item-code" x-text="line.item.code"></div><div class="event-pc-item-foot"><span class="event-pc-stock">Saldo: <strong x-text="line.saldo"></strong></span><div class="event-pc-stepper"><button type="button" @click="line.qty=Math.max(0,line.qty-1)" aria-label="Diminuir">−</button><span class="event-pc-qty" x-text="line.qty"></span><button type="button" @click="line.qty=Math.min(line.saldo,line.qty+1)" aria-label="Aumentar">+</button></div></div></article>
+                <article class="event-pc-item"><div class="event-pc-item-name" x-text="line.item.name"></div><div class="event-pc-item-code" x-text="line.item.code"></div><div class="event-pc-item-foot"><span class="event-pc-stock">Saldo: <strong x-text="line.saldo"></strong> <span class="event-pc-saldo-badge" :class="'saldo-'+stockLevel(line.saldo).class"><i class="bi" :class="stockLevel(line.saldo).icon"></i><span x-text="stockLevel(line.saldo).label"></span></span></span><div class="event-pc-stepper"><button type="button" @click="line.qty=Math.max(0,line.qty-1)" aria-label="Diminuir">−</button><span class="event-pc-qty" x-text="line.qty"></span><button type="button" @click="line.qty=Math.min(line.saldo,line.qty+1)" aria-label="Aumentar">+</button></div></div></article>
               </template>
             </div>
           </div>
@@ -139,6 +147,7 @@ function modoEventoPc(id) {
       const {data}=await Api.get('/api/events/'+id); this.eventName=data.name; this.industries=data.industries||[]; this.filtered=this.industries;
     },
     filterInd(){ const q=this.q.toLowerCase(); this.filtered=this.industries.filter(i=>i.name.toLowerCase().includes(q)); },
+    stockLevel(value){ const n=Number(value)||0; if(n<=5)return {class:'critical',label:'Crítico',icon:'bi-exclamation-octagon-fill'}; if(n<=10)return {class:'warning',label:'Atenção',icon:'bi-exclamation-triangle-fill'}; return {class:'ok',label:'Disponível',icon:'bi-check-circle-fill'}; },
     async pickInd(i){ this.resetSignature(); this.industry=i; this.lines=((await Api.get('/api/events/'+id+'/balance',{industry_id:i.id})).data||[]).map(l=>({...l,qty:0})); this.$nextTick(()=>{const c=document.getElementById('sigEvPc'); if(c)this.pad=UI.signaturePad(c);}); },
     resetSignature(){ if(this.pad)this.pad.clear(); this.pad=null; const c=document.getElementById('sigEvPc'); if(c){const ctx=c.getContext('2d'); if(ctx)ctx.clearRect(0,0,c.width,c.height);} },
     totalQty(){ return this.lines.reduce((sum,l)=>sum+Number(l.qty||0),0); },

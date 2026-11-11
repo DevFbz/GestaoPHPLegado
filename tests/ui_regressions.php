@@ -80,6 +80,12 @@ expectContains('resources/views/pages/events/show.php', "UI.toast('Selecione uma
 expectContains('resources/views/pages/events/show.php', 'this.row = { industry_id: \'\', item_id: \'\', qty_allocated: 1 }', 'Incluir cota limpa o formulário após adicionar');
 expectContains('resources/views/pages/events/mode.php', 'async next()', 'Modo evento recarrega os saldos ao iniciar a próxima retirada');
 expectContains('resources/views/pages/events/mode.php', 'await this.init();', 'Modo evento atualiza a lista de indústrias após uma retirada');
+expectContains('resources/views/pages/events/mode.php', 'stockLevel', 'Modo tablet classifica o saldo disponível');
+expectContains('resources/views/pages/events/mode.php', 'saldo-critical', 'Modo tablet sinaliza saldo crítico');
+expectContains('resources/views/pages/events/mode.php', 'saldo-warning', 'Modo tablet sinaliza saldo de atenção');
+expectContains('resources/views/pages/events/mode.php', 'saldo-ok', 'Modo tablet sinaliza saldo adequado');
+expectContains('resources/views/pages/events/mode.php', 'Legenda de saldo', 'Modo tablet explica as cores do saldo');
+expectContains('resources/views/pages/events/mode-pc.php', 'stockLevel', 'Modo PC usa a mesma classificação de saldo');
 expectContains('public/assets/css/app.css', 'align-self: flex-start', 'Botões não esticam verticalmente dentro de barras flex');
 expectContains('resources/views/pages/lookups/index.php', 'modal-dialog-centered modal-dialog-scrollable', 'Modal de cadastros permite rolagem quando há muitos campos');
 expectContains('resources/views/pages/lookups/index.php', 'lookup-modal-form', 'Formulário de cadastro participa do layout flex do modal');

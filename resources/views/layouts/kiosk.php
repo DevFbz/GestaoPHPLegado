@@ -12,6 +12,7 @@ $color = e($settings['primary_color'] ?? '#2563EB');
   <meta name="base-url" content="<?= e($app['base_url']) ?>">
   <title><?= e($app['page']['title'] ?? 'Modo Evento') ?></title>
   <link rel="stylesheet" href="<?= e(asset('vendor/bootstrap/bootstrap.min.css')) ?>">
+  <link rel="stylesheet" href="<?= e(asset('vendor/bootstrap-icons/bootstrap-icons.min.css')) ?>">
   <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
   <style>:root { --brand-primary: <?= $color ?>; } body { background:#0f172a; color:#fff; }</style>
 </head>
