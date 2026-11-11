@@ -27,6 +27,7 @@ $mustChangePassword = !empty($user['must_change_password']);
   <style>:root { --brand-primary: <?= $color ?>; }</style>
 </head>
 <body data-must-change-password="<?= $mustChangePassword ? '1' : '0' ?>">
+<?php include BASE_PATH . '/resources/views/partials/homolog-test-modal.php'; ?>
 <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
 <div class="page-loader" id="pageLoader" role="status" aria-live="polite" aria-label="Carregando" hidden>
   <div class="page-loader-card">

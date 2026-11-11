@@ -39,6 +39,13 @@ expectContains('resources/views/pages/trade/show.php', 'catch (e)', 'Detalhe TRA
 expectContains('resources/views/pages/trade/form.php', 'items.length === 0', 'Formulário TRADE valida inclusão de brindes');
 expectContains('resources/views/pages/trade/form.php', 'UI.fieldErrors', 'Formulário TRADE exibe erros de campos');
 expectContains('resources/views/layouts/app.php', 'notificationPopover', 'Layout possui modal flutuante de notificações');
+expectContains('resources/views/layouts/app.php', 'homolog-test-modal.php', 'Layout interno inclui aviso permanente somente pelo partial de homologação');
+expectContains('resources/views/layouts/auth.php', 'homolog-test-modal.php', 'Login inclui aviso permanente de homologação');
+expectContains('resources/views/layouts/kiosk.php', 'homolog-test-modal.php', 'Modo evento inclui aviso permanente de homologação');
+expectContains('resources/views/partials/homolog-test-modal.php', "'/homolog'", 'Aviso de testes é condicionado ao ambiente de homologação');
+expectContains('resources/views/partials/homolog-test-modal.php', 'Ambiente de testes', 'Aviso informa que o ambiente é de testes');
+expectContains('resources/views/partials/homolog-test-modal.php', 'aria-modal="true"', 'Aviso de homologação é um modal acessível');
+expectNotContains('resources/views/partials/homolog-test-modal.php', 'btn-close', 'Modal de homologação não possui botão para fechar');
 expectContains('resources/views/layouts/auth.php', 'auth-login-shell', 'Login usa o novo shell compacto alinhado à interface do sistema');
 expectContains('resources/views/layouts/auth.php', 'auth-login-card', 'Login mantém cartão central focado nas credenciais');
 expectContains('public/assets/css/app.css', '.auth-login-shell', 'Estilo do novo layout de autenticação está definido');
