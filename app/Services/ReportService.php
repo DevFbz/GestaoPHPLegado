@@ -109,79 +109,105 @@ final class ReportService
 
     private static function buildEventWorkbook(Spreadsheet $book, array $report, string $blue): void
     {
+        $navy = '101B2E';
+        $pale = 'F2F6FB';
         $summary = $book->getActiveSheet();
         $summary->setTitle('Resumo do evento');
+        $summary->setShowGridlines(false);
+        foreach (range('B', 'P') as $column) $summary->getColumnDimension($column)->setWidth(12.4);
+        $summary->getColumnDimension('A')->setWidth(3);
+        $summary->getColumnDimension('Q')->setWidth(3);
         $eventName = (string) ($report['event_name'] ?? 'Evento');
-        $summary->mergeCells('A1:H1');
-        $summary->setCellValue('A1', 'Relatório executivo · ' . $eventName);
-        $summary->mergeCells('A2:H2');
-        $summary->setCellValue('A2', 'Indicadores de alocação, retirada, saldo e atendimento · gerado em ' . date('d/m/Y H:i'));
-        $summary->getStyle('A1:H1')->applyFromArray(self::reportTitleStyle($blue));
-        $summary->getStyle('A2:H2')->applyFromArray(self::reportSubtitleStyle($blue));
+        $summary->mergeCells('B1:P1');
+        $summary->setCellValue('B1', 'EMEFARMA  |  PAINEL EXECUTIVO');
+        $summary->getStyle('B1:P1')->applyFromArray(self::dashboardBrandStyle($navy));
         $summary->getRowDimension(1)->setRowHeight(30);
-        $summary->getRowDimension(2)->setRowHeight(24);
-        $summary->fromArray(['Indicador', 'Valor'], null, 'A4');
-        $summary->getStyle('A4:B4')->applyFromArray(self::reportHeaderStyle($blue));
-        $row = 5;
-        foreach (($report['summary'] ?? []) as $label => $value) {
-            $summary->setCellValue("A{$row}", $label);
-            $summary->setCellValue("B{$row}", is_numeric($value) ? (float) $value : $value);
-            $row++;
+        $summary->mergeCells('B3:P3');
+        $summary->setCellValue('B3', 'EVENTO  ' . mb_strtoupper($eventName) . '  •  Alocação de brindes e controle de retiradas  •  Base de ' . date('d/m/Y, H:i'));
+        $summary->getStyle('B3:P3')->applyFromArray(self::dashboardSubtitleStyle($navy));
+        $summary->getRowDimension(3)->setRowHeight(27);
+        $summary->mergeCells('B5:P5');
+        $summary->setCellValue('B5', 'VISÃO GERAL   /   INDICADORES PRINCIPAIS');
+        $summary->getStyle('B5:P5')->applyFromArray(self::dashboardSectionStyle($navy));
+        self::dashboardCard($summary, 'B6:D6', 'B7:D9', 'ITENS CONTROLADOS', $report['summary']['Itens controlados'] ?? 0, $navy, $pale, '0');
+        self::dashboardCard($summary, 'E6:G6', 'E7:G9', 'INDÚSTRIAS', $report['summary']['Indústrias participantes'] ?? 0, $navy, $pale, '0');
+        self::dashboardCard($summary, 'H6:J6', 'H7:J9', 'QTDE. ALOCADA', $report['summary']['Quantidade alocada'] ?? 0, $navy, $pale, '#,##0');
+        self::dashboardCard($summary, 'K6:M6', 'K7:M9', 'QTDE. RETIRADA', $report['summary']['Quantidade retirada'] ?? 0, $navy, $pale, '#,##0');
+        self::dashboardCard($summary, 'N6:P6', 'N7:P9', 'SALDO DISPONÍVEL', $report['summary']['Saldo disponível'] ?? 0, $navy, $pale, '#,##0');
+        $allocated = (int) ($report['summary']['Quantidade alocada'] ?? 0);
+        $withdrawn = (int) ($report['summary']['Quantidade retirada'] ?? 0);
+        $protocols = (int) ($report['summary']['Protocolos de retirada'] ?? 0);
+        $rate = $allocated > 0 ? $withdrawn / $allocated : 0;
+        $average = $protocols > 0 ? $withdrawn / $protocols : 0;
+        foreach ([['B11:G11', 'B12:G14', 'TAXA DE APROVEITAMENTO', $rate, '0.0%'], ['H11:M11', 'H12:M14', 'PROTOCOLOS REGISTRADOS', $protocols, '#,##0'], ['N11:P11', 'N12:P14', 'MÉDIA / PROTOCOLO', $average, '0.00']] as [$labelRange, $valueRange, $label, $value, $format]) {
+            $summary->mergeCells($labelRange); $summary->mergeCells($valueRange);
+            $summary->setCellValue(explode(':', $labelRange)[0], $label);
+            $summary->setCellValue(explode(':', $valueRange)[0], $value);
+            $summary->getStyle($labelRange)->applyFromArray(self::dashboardMetricLabelStyle($navy));
+            $summary->getStyle($valueRange)->applyFromArray(self::dashboardMetricValueStyle('0C9F8B'));
+            $summary->getStyle($valueRange)->getNumberFormat()->setFormatCode($format);
         }
-        $summary->getStyle("A4:B" . max(4, $row - 1))->getBorders()->getBottom()->setBorderStyle(Border::BORDER_HAIR)->getColor()->setARGB('FFD7E3F4');
-        $summary->getColumnDimension('A')->setWidth(32);
-        $summary->getColumnDimension('B')->setWidth(20);
-        $summary->freezePane('A5');
-
-        $data = $book->createSheet();
-        $data->setTitle('Alocação por item');
-        self::writeReportSheet($data, ['columns' => $report['columns'], 'rows' => $report['rows']], $blue, true);
-        if (count($report['rows']) > 0) {
-            $cats = [new DataSeriesValues('String', "'Alocação por item'!\$C\$4:\$C\$" . (count($report['rows']) + 3), null, count($report['rows']))];
-            $vals = [new DataSeriesValues('Number', "'Alocação por item'!\$E\$4:\$E\$" . (count($report['rows']) + 3), null, count($report['rows']))];
-            $series = new DataSeries(DataSeries::TYPE_BARCHART, DataSeries::GROUPING_CLUSTERED, range(0, count($vals) - 1), [], $cats, $vals);
-            $series->setPlotDirection(DataSeries::DIRECTION_COL);
-            $chart = new Chart('event_balance_chart', new Title('Retirado por item'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Brindes'), new Title('Quantidade retirada'));
-            $chart->setTopLeftPosition('D4');
-            $chart->setBottomRightPosition('K20');
-            $summary->addChart($chart);
+        $summary->mergeCells('B16:P16');
+        $summary->setCellValue('B16', 'ANÁLISE VISUAL   /   RETIRADAS E DESEMPENHO');
+        $summary->getStyle('B16:P16')->applyFromArray(self::dashboardSectionStyle($navy));
+        self::addEventCharts($summary, $report);
+        $summary->mergeCells('B48:P48');
+        $summary->setCellValue('B48', 'FONTE: abas operacionais do relatório original  •  Indicadores e gráficos vinculados às tabelas  •  Dados históricos até ' . date('d/m/Y'));
+        $summary->getStyle('B48:P48')->applyFromArray(self::dashboardFooterStyle($navy));
+        $summary->freezePane('B6');
+        foreach ([['Alocação por item', 'columns', 'rows'], ['Por indústria', 'industry_columns', 'industry_rows'], ['Evolução diária', 'timeline_columns', 'timeline_rows'], ['Retiradas', 'withdrawal_columns', 'withdrawal_rows'], ['Recebedores', 'recipient_columns', 'recipient_rows']] as [$title, $columnsKey, $rowsKey]) {
+            $sheet = $book->createSheet(); $sheet->setTitle($title);
+            self::writeReportSheet($sheet, ['title' => $title, 'columns' => $report[$columnsKey], 'rows' => $report[$rowsKey]], $navy, true);
         }
-
-        $industry = $book->createSheet();
-        $industry->setTitle('Por indústria');
-        self::writeReportSheet($industry, ['title' => 'Por indústria', 'columns' => $report['industry_columns'], 'rows' => $report['industry_rows']], $blue, true);
-        if (count($report['industry_rows']) > 0) {
-            $cats = [new DataSeriesValues('String', "'Por indústria'!\$A\$4:\$A\$" . (count($report['industry_rows']) + 3), null, count($report['industry_rows']))];
-            $vals = [new DataSeriesValues('Number', "'Por indústria'!\$E\$4:\$E\$" . (count($report['industry_rows']) + 3), null, count($report['industry_rows']))];
-            $series = new DataSeries(DataSeries::TYPE_BARCHART, DataSeries::GROUPING_CLUSTERED, [0], [], $cats, $vals);
-            $series->setPlotDirection(DataSeries::DIRECTION_COL);
-            $chart = new Chart('event_industry_chart', new Title('Retiradas por indústria'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Indústrias'), new Title('Quantidade retirada'));
-            $chart->setTopLeftPosition('D22');
-            $chart->setBottomRightPosition('K38');
-            $summary->addChart($chart);
-        }
-
-        $timeline = $book->createSheet();
-        $timeline->setTitle('Evolução diária');
-        self::writeReportSheet($timeline, ['title' => 'Evolução diária', 'columns' => $report['timeline_columns'], 'rows' => $report['timeline_rows']], $blue, true);
-        if (count($report['timeline_rows']) > 0) {
-            $cats = [new DataSeriesValues('String', "'Evolução diária'!\$A\$4:\$A\$" . (count($report['timeline_rows']) + 3), null, count($report['timeline_rows']))];
-            $vals = [new DataSeriesValues('Number', "'Evolução diária'!\$C\$4:\$C\$" . (count($report['timeline_rows']) + 3), null, count($report['timeline_rows']))];
-            $series = new DataSeries(DataSeries::TYPE_LINECHART, DataSeries::GROUPING_STANDARD, [0], [], $cats, $vals);
-            $chart = new Chart('event_timeline_chart', new Title('Retiradas ao longo do tempo'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Data'), new Title('Quantidade'));
-            $chart->setTopLeftPosition('D40');
-            $chart->setBottomRightPosition('K56');
-            $summary->addChart($chart);
-        }
-
-        $withdrawals = $book->createSheet();
-        $withdrawals->setTitle('Retiradas');
-        self::writeReportSheet($withdrawals, ['title' => 'Retiradas', 'columns' => $report['withdrawal_columns'], 'rows' => $report['withdrawal_rows']], $blue, true);
-
-        $recipients = $book->createSheet();
-        $recipients->setTitle('Recebedores');
-        self::writeReportSheet($recipients, ['title' => 'Recebedores', 'columns' => $report['recipient_columns'], 'rows' => $report['recipient_rows']], $blue, true);
     }
+
+    private static function dashboardCard($sheet, string $labelRange, string $valueRange, string $label, mixed $value, string $navy, string $pale, string $format): void
+    {
+        $sheet->mergeCells($labelRange); $sheet->mergeCells($valueRange);
+        $sheet->setCellValue(explode(':', $labelRange)[0], $label); $sheet->setCellValue(explode(':', $valueRange)[0], $value);
+        $sheet->getStyle($labelRange)->applyFromArray(self::dashboardMetricLabelStyle($navy));
+        $sheet->getStyle($valueRange)->applyFromArray(self::dashboardMetricValueStyle($navy));
+        $sheet->getStyle($valueRange)->getNumberFormat()->setFormatCode($format);
+        foreach ([$labelRange, $valueRange] as $range) $sheet->getStyle($range)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF' . $pale);
+    }
+
+    private static function addEventCharts($summary, array $report): void
+    {
+        if (count($report['industry_rows']) > 0) {
+            $n = count($report['industry_rows']);
+            $cats = [new DataSeriesValues('String', "'Por indústria'!\$A\$4:\$A\$" . ($n + 3), null, $n)];
+            $withdrawn = [new DataSeriesValues('Number', "'Por indústria'!\$D\$4:\$D\$" . ($n + 3), null, $n)];
+            $series = new DataSeries(DataSeries::TYPE_BARCHART, DataSeries::GROUPING_CLUSTERED, [0], [], $cats, $withdrawn);
+            $series->setPlotDirection(DataSeries::DIRECTION_COL);
+            $chart = new Chart('event_industry_withdrawn_chart', new Title('Retiradas por indústria'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Indústrias'), new Title('Quantidade retirada'));
+            $chart->setTopLeftPosition('B18'); $chart->setBottomRightPosition('H34'); $summary->addChart($chart);
+        }
+        if (count($report['timeline_rows']) > 0) {
+            $n = count($report['timeline_rows']);
+            $cats = [new DataSeriesValues('String', "'Evolução diária'!\$A\$4:\$A\$" . ($n + 3), null, $n)];
+            $vals = [new DataSeriesValues('Number', "'Evolução diária'!\$C\$4:\$C\$" . ($n + 3), null, $n)];
+            $series = new DataSeries(DataSeries::TYPE_LINECHART, DataSeries::GROUPING_STANDARD, [0], [], $cats, $vals);
+            $chart = new Chart('event_timeline_chart', new Title('Retiradas ao longo do tempo'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Data'), new Title('Quantidade retirada'));
+            $chart->setTopLeftPosition('I18'); $chart->setBottomRightPosition('P34'); $summary->addChart($chart);
+        }
+        if (count($report['industry_rows']) > 0) {
+            $n = count($report['industry_rows']);
+            $cats = [new DataSeriesValues('String', "'Por indústria'!\$A\$4:\$A\$" . ($n + 3), null, $n)];
+            $labels = [new DataSeriesValues('String', "'Por indústria'!\$C\$3", null, 1), new DataSeriesValues('String', "'Por indústria'!\$D\$3", null, 1)];
+            $values = [new DataSeriesValues('Number', "'Por indústria'!\$C\$4:\$C\$" . ($n + 3), null, $n), new DataSeriesValues('Number', "'Por indústria'!\$D\$4:\$D\$" . ($n + 3), null, $n)];
+            $series = new DataSeries(DataSeries::TYPE_BARCHART, DataSeries::GROUPING_CLUSTERED, [0, 1], $labels, $cats, $values);
+            $series->setPlotDirection(DataSeries::DIRECTION_COL);
+            $chart = new Chart('event_industry_compare_chart', new Title('Alocado x retirado por indústria'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Indústrias'), new Title('Quantidade'));
+            $chart->setTopLeftPosition('B36'); $chart->setBottomRightPosition('P47'); $summary->addChart($chart);
+        }
+    }
+
+    private static function dashboardBrandStyle(string $navy): array { return ['font' => ['bold' => true, 'size' => 21, 'name' => 'Aptos Display', 'color' => ['rgb' => 'FFFFFF']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $navy]], 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]]; }
+    private static function dashboardSubtitleStyle(string $navy): array { return ['font' => ['bold' => true, 'size' => 11, 'name' => 'Aptos', 'color' => ['rgb' => '50647C']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F2F6FB']], 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]]; }
+    private static function dashboardSectionStyle(string $navy): array { return ['font' => ['bold' => true, 'size' => 10, 'name' => 'Aptos', 'color' => ['rgb' => 'FFFFFF']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $navy]], 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]]; }
+    private static function dashboardMetricLabelStyle(string $navy): array { return ['font' => ['bold' => true, 'size' => 10, 'name' => 'Aptos', 'color' => ['rgb' => $navy]], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F2F6FB']], 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true]]; }
+    private static function dashboardMetricValueStyle(string $color): array { return ['font' => ['bold' => true, 'size' => 30, 'name' => 'Aptos', 'color' => ['rgb' => $color]], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F2F6FB']], 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER]]; }
+    private static function dashboardFooterStyle(string $navy): array { return ['font' => ['bold' => true, 'size' => 9, 'name' => 'Aptos', 'color' => ['rgb' => '50647C']], 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]]; }
 
     private static function writeReportSheet($sheet, array $report, string $blue, bool $freeze): void
     {

@@ -68,14 +68,14 @@ expectContains('app/Services/NotificationService.php', 'sent_via', 'Fila persist
 expectContains('resources/views/pages/reports/index.php', "type === 'event_report'", 'Relatório de evento exibe seletor específico');
 expectContains('resources/views/pages/reports/index.php', 'eventId', 'Relatório de evento envia o identificador do evento');
 expectContains('app/Services/ReportService.php', 'buildEventWorkbook', 'Excel do evento possui workbook executivo');
-expectContains('app/Services/ReportService.php', 'event_balance_chart', 'Excel do evento possui gráfico');
+expectContains('app/Services/ReportService.php', 'event_industry_withdrawn_chart', 'Excel do evento possui gráfico de retiradas por indústria');
+expectContains('app/Services/ReportService.php', 'event_industry_compare_chart', 'Excel do evento possui gráfico comparativo alocado versus retirado');
 expectContains('app/Services/ReportService.php', 'Aproveitamento (%)', 'Relatório do evento calcula indicador de aproveitamento');
-expectContains('app/Services/ReportService.php', "setTitle('Por indústria')", 'Dashboard possui aba por indústria');
-expectContains('app/Services/ReportService.php', "setTitle('Evolução diária')", 'Dashboard possui aba de evolução diária');
-expectContains('app/Services/ReportService.php', "'title' => 'Por indústria'", 'Aba por indústria recebe título explícito');
-expectContains('app/Services/ReportService.php', "'title' => 'Evolução diária'", 'Aba de evolução recebe título explícito');
+expectContains('app/Services/ReportService.php', "['Por indústria', 'industry_columns', 'industry_rows']", 'Dashboard possui aba por indústria');
+expectContains('app/Services/ReportService.php', "['Evolução diária', 'timeline_columns', 'timeline_rows']", 'Dashboard possui aba de evolução diária');
+expectContains('app/Services/ReportService.php', "'title' => \$title", 'Abas operacionais recebem títulos explícitos');
 expectContains('app/Services/ReportService.php', "'title' => 'Retiradas'", 'Aba de retiradas recebe título explícito');
-expectContains('app/Services/ReportService.php', "'title' => 'Recebedores'", 'Aba de recebedores recebe título explícito');
+
 expectContains('app/Services/DeliveryService.php', '$d[\'items\'] = self::items($id)', 'Reenvio carrega os itens antes de montar o e-mail');
 expectContains('app/Services/DeliveryService.php', 'filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)', 'Reenvio valida o e-mail do recebedor antes de enviar');
 expectContains('app/Services/DeliveryService.php', 'filter_var($industryEmail, FILTER_VALIDATE_EMAIL)', 'Reenvio valida o e-mail da indústria antes de enviar');
