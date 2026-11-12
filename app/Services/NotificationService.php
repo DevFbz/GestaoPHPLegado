@@ -257,12 +257,13 @@ final class NotificationService
         return $sent;
     }
 
-    public static function flush(): void
+    public static function flush(): int
     {
         try {
-            self::processOutbox(8);
+            return self::processOutbox(8);
         } catch (Throwable $e) {
             Log::error('Notification outbox flush failed', ['error' => $e->getMessage()]);
+            return 0;
         }
     }
 

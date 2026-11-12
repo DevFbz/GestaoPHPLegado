@@ -38,4 +38,9 @@ final class DeliveriesController
         $status = DeliveryService::resend($request->id());
         return Response::ok(['resent' => $status['key'] === 'sent', 'email_status' => $status]);
     }
+
+    public function groupResend(Request $request): Response
+    {
+        return Response::ok(DeliveryService::resendGroup($request->input('ids', [])));
+    }
 }

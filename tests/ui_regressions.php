@@ -59,6 +59,16 @@ expectContains('resources/views/pages/deliveries/index.php', 'per_page: 100', 'C
 expectContains('resources/views/pages/deliveries/index.php', "'Não enviado'", 'Status alternativo de transporte aparece como não enviado');
 expectContains('resources/views/pages/deliveries/show.php', 'Enviar email automático', 'Detalhe usa o nome correto para reenvio automático');
 expectContains('resources/views/pages/deliveries/show.php', 'email_status', 'Detalhe do protocolo exibe status do e-mail');
+expectContains('resources/views/pages/deliveries/index.php', 'groupedRows()', 'Comprovantes agrupa protocolos por e-mail');
+expectContains('resources/views/pages/deliveries/index.php', 'Enviar todos em um e-mail', 'Comprovantes oferece envio agrupado');
+expectContains('app/routes.php', '/api/deliveries/group-resend', 'API possui rota de reenvio agrupado');
+expectContains('app/Services/DeliveryService.php', 'resendGroup', 'Serviço monta reenvio agrupado');
+expectContains('app/Services/DeliveryService.php', 'precisam ter o mesmo e-mail', 'Reenvio agrupado valida o destinatário único');
+expectContains('app/Services/DeliveryService.php', 'mesma indústria', 'Reenvio agrupado não mistura indústrias');
+expectContains('app/Services/DeliveryService.php', 'ZipArchive', 'Reenvio agrupado anexa os PDFs em um ZIP');
+expectContains('app/Services/DeliveryService.php', 'sort($ids, SORT_NUMERIC)', 'Reenvio agrupado deduplica independentemente da ordem');
+expectContains('app/Services/DeliveryService.php', 'SELECT status, sent_via, sent_at FROM notifications', 'Reenvio agrupado confirma o status persistido');
+expectContains('app/Services/DeliveryService.php', 'WHERE dedupe_key = ?', 'Reenvio agrupado evita ZIP duplicado');
 expectContains('app/Services/DeliveryService.php', "'label' => 'Enviado'", 'API identifica envio confirmado como Enviado');
 expectContains('app/Controllers/DeliveriesController.php', "'resent' =>", 'Reenvio só confirma quando o status é enviado');
 expectContains('app/Services/NotificationService.php', '$attemptKey', 'Reenvio gera uma nova chave de tentativa');

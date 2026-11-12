@@ -344,6 +344,106 @@ final class DeliveryService
         return self::emailStatus($id);
     }
 
+    /** Sends all selected protocols for one normalized recipient in a single e-mail. */
+    public static function resendGroup(mixed $ids): array
+    {
+        if (!is_array($ids)) {
+            throw HttpException::badRequest('INVALID_PROTOCOL_GROUP', 'Selecione protocolos válidos para agrupar.');
+        }
+        $ids = array_values(array_unique(array_filter(array_map(static fn ($id) => is_numeric($id) ? (int) $id : 0, $ids), static fn (int $id) => $id > 0)));
+        if (count($ids) < 2 || count($ids) > 100) {
+            throw HttpException::badRequest('INVALID_PROTOCOL_GROUP', 'O grupo precisa ter entre 2 e 100 protocolos.');
+        }
+        sort($ids, SORT_NUMERIC);
+        $rows = [];
+        $recipient = null;
+        $groupIndustryId = null;
+        foreach ($ids as $id) {
+            $row = Db::fetch(self::SELECT . ' ' . self::FROM . ' WHERE d.id = ?', [$id]);
+            if ($row === null) {
+                throw HttpException::notFound('Um dos protocolos selecionados não foi encontrado.');
+            }
+            $industryId = Auth::industryId();
+            if ($industryId !== null && (int) ($row['industry_id'] ?? 0) !== $industryId) {
+                throw HttpException::forbidden('Você não pode enviar protocolos de outra indústria.');
+            }
+            $rowIndustryId = (int) ($row['industry_id'] ?? 0);
+            if ($groupIndustryId === null) {
+                $groupIndustryId = $rowIndustryId;
+            } elseif ($groupIndustryId !== $rowIndustryId) {
+                throw HttpException::badRequest('INVALID_PROTOCOL_GROUP', 'Os protocolos precisam pertencer à mesma indústria.');
+            }
+            $email = is_string($row['received_by_email'] ?? null) ? strtolower(trim((string) $row['received_by_email'])) : '';
+            $email = filter_var($email, FILTER_VALIDATE_EMAIL) ?: null;
+            if ($email === null) {
+                throw HttpException::badRequest('INVALID_PROTOCOL_GROUP', 'Todos os protocolos precisam ter um e-mail válido.');
+            }
+            if ($recipient === null) {
+                $recipient = $email;
+            } elseif ($recipient !== $email) {
+                throw HttpException::badRequest('INVALID_PROTOCOL_GROUP', 'Os protocolos selecionados precisam ter o mesmo e-mail.');
+            }
+            $d = self::present($row);
+            $d['items'] = self::items($id);
+            $rows[] = $d + ['pdf_path' => $row['pdf_path'] ?? null];
+        }
+        $subject = 'Comprovantes de retirada — ' . count($rows) . ' protocolos';
+        $dedupe = 'protocol-group-' . sha1($recipient . ':' . implode(',', $ids));
+        $existing = Db::fetch('SELECT status, sent_via, sent_at FROM notifications WHERE dedupe_key = ? ORDER BY id DESC LIMIT 1', [$dedupe]);
+        if ($existing !== null) {
+            $status = ($existing['status'] === 'enviado' && $existing['sent_via'] === 'brevo_smtp')
+                ? ['key' => 'sent', 'label' => 'Enviado', 'sent_at' => $existing['sent_at']]
+                : ($existing['status'] === 'falhou'
+                    ? ['key' => 'failed', 'label' => 'Falha no envio', 'sent_at' => $existing['sent_at']]
+                    : ['key' => 'queued', 'label' => 'Na fila de envio', 'sent_at' => $existing['sent_at']]);
+            return ['count' => count($rows), 'email' => $recipient, 'email_status' => $status];
+        }
+        if (!class_exists('ZipArchive')) {
+            throw new \RuntimeException('A extensão ZIP é necessária para preparar os comprovantes agrupados.');
+        }
+        $archiveRelative = 'mail/archives/protocolos-' . bin2hex(random_bytes(8)) . '.zip';
+        $archive = ImageService::absolute($archiveRelative);
+        $zip = new \ZipArchive();
+        if ($zip->open($archive, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Não foi possível preparar o arquivo dos comprovantes.');
+        }
+        $sections = [];
+        foreach ($rows as $d) {
+            $pdfRelative = (string) ($d['pdf_path'] ?? '');
+            if ($pdfRelative === '' || !is_file(ImageService::absolute($pdfRelative))) {
+                $pdfRelative = PdfService::generate((int) $d['id']);
+            }
+            $pdfAbsolute = ImageService::absolute($pdfRelative);
+            if (!is_file($pdfAbsolute) || !$zip->addFile($pdfAbsolute, (string) $d['code'] . '.pdf')) {
+                $zip->close();
+                @unlink($archive);
+                throw new \RuntimeException('Não foi possível incluir todos os PDFs dos protocolos.');
+            }
+            $items = '';
+            foreach ($d['items'] as $item) {
+                $items .= '<li>' . e((string) ($item['item']['name'] ?? 'Brinde')) . ': ' . (int) ($item['qty'] ?? 0) . '</li>';
+            }
+            $sections[] = '<h3 style="margin:18px 0 6px">Protocolo ' . e((string) $d['code']) . '</h3>'
+                . '<p style="margin:0 0 6px">' . e((string) ($d['type_label'] ?? '')) . ' · ' . e((string) ($d['received_by_name'] ?? '')) . '</p>'
+                . '<ul style="margin-top:6px">' . $items . '</ul>'
+                . '<p>O PDF deste protocolo está no arquivo ZIP anexado.</p>';
+        }
+        if (!$zip->close() || !is_file($archive)) {
+            @unlink($archive);
+            throw new \RuntimeException('Não foi possível finalizar o arquivo dos comprovantes.');
+        }
+        $html = Mailer::layout($subject, '<p>Olá,</p><p>Segue um único e-mail com os comprovantes selecionados. Os PDFs estão reunidos no arquivo ZIP anexado.</p>' . implode('', $sections));
+        NotificationService::queueEmail(Auth::id(), (string) $recipient, $subject, $html, $archiveRelative, $dedupe, 'delivery_group', null);
+        NotificationService::flush();
+        $notification = Db::fetch('SELECT status, sent_via, sent_at FROM notifications WHERE dedupe_key = ? ORDER BY id DESC LIMIT 1', [$dedupe]);
+        $status = ($notification && $notification['status'] === 'enviado' && $notification['sent_via'] === 'brevo_smtp')
+            ? ['key' => 'sent', 'label' => 'Enviado', 'sent_at' => $notification['sent_at']]
+            : (($notification['status'] ?? '') === 'falhou'
+                ? ['key' => 'failed', 'label' => 'Falha no envio', 'sent_at' => $notification['sent_at'] ?? null]
+                : ['key' => 'queued', 'label' => 'Na fila de envio', 'sent_at' => $notification['sent_at'] ?? null]);
+        return ['count' => count($rows), 'email' => $recipient, 'email_status' => $status];
+    }
+
     public static function finalizePdfAndMail(int $deliveryId): array
     {
         try {
