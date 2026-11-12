@@ -53,7 +53,6 @@ return static function (Router $r): void {
     $r->put('/api/settings', [SettingsController::class, 'update'], ['perm' => 'settings.manage']);
     $r->post('/api/settings/logo', [SettingsController::class, 'uploadLogo'], ['perm' => 'settings.manage']);
     $r->delete('/api/settings/logo', [SettingsController::class, 'deleteLogo'], ['perm' => 'settings.manage']);
-    $r->post('/api/settings/test-email', [SettingsController::class, 'testEmail'], ['perm' => 'settings.manage']);
     $r->get('/api/admin/backup', [SettingsController::class, 'backup'], ['perm' => 'settings.manage']);
     $r->get('/api/admin/export-all', [SettingsController::class, 'exportAll'], ['perm' => 'settings.manage']);
     $r->post('/api/admin/import-all/preview', [SettingsController::class, 'previewImportAll'], ['perm' => 'settings.manage']);

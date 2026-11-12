@@ -54,6 +54,10 @@ expectContains('app/Services/SettingsService.php', 'lecomWorkspaceStartUrl', 'Ro
 expectContains('resources/views/pages/settings/index.php', 'lecom_process_version', 'Versão do processo Lecom é configurável');
 expectContains('resources/views/pages/settings/index.php', 'data-no-loading', 'Downloads de Excel e backup não ativam o carregamento de navegação');
 expectContains('resources/views/pages/settings/index.php', 'Exportar todos os dados (Excel)', 'Configurações mantém exportação completa em português');
+expectNotContains('resources/views/pages/settings/index.php', 'testMail()', 'Configurações não exibem a aba/ação administrativa de teste de e-mail');
+expectNotContains('resources/views/pages/settings/index.php', "'/api/settings/test-email'", 'Configurações não chamam a rota removida de teste de e-mail');
+expectNotContains('app/routes.php', '/api/settings/test-email', 'Rota administrativa de teste de e-mail foi removida');
+expectNotContains('app/Controllers/SettingsController.php', 'function testEmail', 'Controller não mantém ação administrativa de teste de e-mail');
 expectContains('app/Services/DataExportService.php', "'Exportação completa de dados'", 'Excel possui aba de resumo didática');
 expectContains('app/Services/DataExportService.php', 'Campos de autenticação e tokens foram omitidos', 'Excel informa os campos omitidos por segurança');
 expectContains('app/Services/DataExportService.php', 'COLUMN_LABELS', 'Excel usa cabeçalhos traduzidos para português');

@@ -52,8 +52,6 @@ final class SettingsController
             'lecom_api_start_url' => SettingsService::lecomApiStartUrl(),
             'lecom_api_x_server' => SettingsService::lecomApiServer(),
             'lecom_workspace_start_url' => SettingsService::lecomWorkspaceStartUrl(),
-            'mail_driver' => \App\Services\Mailer::driver(),
-            'mail_smtp' => \App\Services\Mailer::isSmtp(),
         ]);
     }
 
@@ -117,21 +115,6 @@ final class SettingsController
             ImageService::delete($old);
         }
         return $this->index($request);
-    }
-
-    public function testEmail(Request $request): Response
-    {
-        $user = \App\Core\Auth::user();
-        \App\Services\Mailer::send(
-            (string) $user['email'],
-            'Teste de e-mail — Controle de Brindes',
-            \App\Services\Mailer::layout('Teste de e-mail', '<p>Se você recebeu esta mensagem, o envio de e-mail está configurado corretamente.</p>')
-        );
-        $smtp = \App\Services\Mailer::isSmtp();
-        $msg = $smtp
-            ? 'E-mail de teste enviado para ' . $user['email'] . '.'
-            : 'SMTP ainda não está configurado neste ambiente. O teste foi registrado internamente; no servidor de vocês, com host/usuário/senha SMTP, o comprovante sai de verdade para ' . $user['email'] . '.';
-        return Response::ok(['message' => $msg]);
     }
 
     /** POST /api/admin/reset-data - keeps access roles/users, clears all operational data. */

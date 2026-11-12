@@ -67,12 +67,7 @@
     <pre class="mb-0 mt-1"><code x-text="apiBody()"></code></pre>
   </div>
   <div class="form-text mb-3">A chave da API não é salva nem exibida nesta tela. O script da biblioteca usa a rota Workspace com método <code>PUT</code> e o cookie SSO do Lecom; depois, use o <code>processInstanceId</code> retornado para abrir <code>/workspace/form-app/{id}/1/1?isNewForm=true</code>.</div>
-  <div class="alert" :class="f.mail_smtp ? 'alert-success' : 'alert-warning'" x-show="f.mail_driver">
-    <span x-show="f.mail_smtp">Envio de e-mail por SMTP ativo.</span>
-    <span x-show="!f.mail_smtp">Nesta demonstração o e-mail fica registrado no sistema. No servidor de vocês, configure SMTP no arquivo .env (MAIL_DRIVER=smtp + host/usuário/senha) para o comprovante da retirada sair na hora.</span>
-  </div>
   <button class="btn btn-primary" @click="save">Salvar</button>
-  <button class="btn btn-outline-secondary" @click="testMail">Testar e-mail</button>
   <a class="btn btn-success" data-no-loading :href="Api.url('/api/admin/export-all')"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar todos os dados (Excel)</a>
   <a class="btn btn-outline-secondary" data-no-loading :href="Api.url('/api/admin/backup')"><i class="bi bi-database-down me-1"></i>Baixar backup do banco</a>
   <?php if (\App\Services\DataImportService::isAvailable()): ?>
@@ -152,10 +147,6 @@ function settingsPage() {
       }, null, 2);
     },
 
-    async testMail() {
-      try { const { data } = await Api.post('/api/settings/test-email'); UI.toast(data.message, 'ok'); }
-      catch (e) { UI.toast(e.message, 'err'); }
-    },
     async previewImport() {
       if (!this.importFile) return;
       this.importBusy = true;
