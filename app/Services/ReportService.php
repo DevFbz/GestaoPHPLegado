@@ -477,7 +477,7 @@ final class ReportService
             [$eid]
         );
         $who = Db::fetchAll(
-            'SELECT d.created_at, d.received_by_name, i.name AS item_name, di.qty, ind.name AS industry
+            'SELECT d.id AS delivery_id, d.created_at, d.received_by_name, i.name AS item_name, di.qty, ind.name AS industry
                FROM deliveries d
                JOIN delivery_items di ON di.delivery_id = d.id
                JOIN items i ON i.id = di.item_id
@@ -495,7 +495,7 @@ final class ReportService
             'Quantidade retirada' => $withdrawn,
             'Saldo disponível' => $allocated - $withdrawn,
             'Aproveitamento (%)' => $allocated > 0 ? round(($withdrawn / $allocated) * 100, 1) : 0,
-            'Protocolos de retirada' => count(array_unique(array_map(fn ($w) => (string) $w['created_at'] . '|' . (string) $w['received_by_name'], $who))),
+            'Protocolos de retirada' => count(array_unique(array_map(fn ($w) => (int) $w['delivery_id'], $who))),
         ];
         $withdrawalColumns = ['Data/hora', 'Indústria', 'Brinde', 'Quantidade', 'Recebedor'];
         $withdrawalRows = array_map(fn ($w) => [$w['created_at'], $w['industry'] ?: '—', $w['item_name'], (int) $w['qty'], $w['received_by_name']], $who);
