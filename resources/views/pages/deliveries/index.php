@@ -38,7 +38,15 @@ function protIndex() {
     q: '', from: '', to: '', rows: [], t: null,
     debounced() { clearTimeout(this.t); this.t = setTimeout(() => this.load(), 300); },
     async load() {
-      this.rows = (await Api.get('/api/deliveries', { q: this.q, from: this.from, to: this.to })).data;
+      const params = { q: this.q, from: this.from, to: this.to, page: 1, per_page: 100 };
+      const first = await Api.get('/api/deliveries', params);
+      const rows = first.data || [];
+      const lastPage = Number(first.meta?.last_page || 1);
+      for (let page = 2; page <= lastPage; page++) {
+        const next = await Api.get('/api/deliveries', { ...params, page });
+        rows.push(...(next.data || []));
+      }
+      this.rows = rows;
     }
   };
 }

@@ -54,6 +54,8 @@ expectContains('app/Services/SettingsService.php', 'lecomWorkspaceStartUrl', 'Ro
 expectContains('resources/views/pages/settings/index.php', 'lecom_process_version', 'Versão do processo Lecom é configurável');
 expectContains('resources/views/pages/settings/index.php', 'data-no-loading', 'Downloads de Excel e backup não ativam o carregamento de navegação');
 expectContains('resources/views/pages/settings/index.php', 'Exportar todos os dados (Excel)', 'Configurações mantém exportação completa em português');
+expectContains('resources/views/pages/deliveries/index.php', 'last_page', 'Comprovantes considera todas as páginas da API');
+expectContains('resources/views/pages/deliveries/index.php', 'per_page: 100', 'Comprovantes busca páginas no limite permitido');
 expectNotContains('resources/views/pages/settings/index.php', 'testMail()', 'Configurações não exibem a aba/ação administrativa de teste de e-mail');
 expectNotContains('resources/views/pages/settings/index.php', "'/api/settings/test-email'", 'Configurações não chamam a rota removida de teste de e-mail');
 expectNotContains('app/routes.php', '/api/settings/test-email', 'Rota administrativa de teste de e-mail foi removida');
