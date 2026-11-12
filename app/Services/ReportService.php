@@ -149,7 +149,7 @@ final class ReportService
 
         $industry = $book->createSheet();
         $industry->setTitle('Por indústria');
-        self::writeReportSheet($industry, ['columns' => $report['industry_columns'], 'rows' => $report['industry_rows']], $blue, true);
+        self::writeReportSheet($industry, ['title' => 'Por indústria', 'columns' => $report['industry_columns'], 'rows' => $report['industry_rows']], $blue, true);
         if (count($report['industry_rows']) > 0) {
             $cats = [new DataSeriesValues('String', "'Por indústria'!\$A\$4:\$A\$" . (count($report['industry_rows']) + 3), null, count($report['industry_rows']))];
             $vals = [new DataSeriesValues('Number', "'Por indústria'!\$E\$4:\$E\$" . (count($report['industry_rows']) + 3), null, count($report['industry_rows']))];
@@ -163,7 +163,7 @@ final class ReportService
 
         $timeline = $book->createSheet();
         $timeline->setTitle('Evolução diária');
-        self::writeReportSheet($timeline, ['columns' => $report['timeline_columns'], 'rows' => $report['timeline_rows']], $blue, true);
+        self::writeReportSheet($timeline, ['title' => 'Evolução diária', 'columns' => $report['timeline_columns'], 'rows' => $report['timeline_rows']], $blue, true);
         if (count($report['timeline_rows']) > 0) {
             $cats = [new DataSeriesValues('String', "'Evolução diária'!\$A\$4:\$A\$" . (count($report['timeline_rows']) + 3), null, count($report['timeline_rows']))];
             $vals = [new DataSeriesValues('Number', "'Evolução diária'!\$C\$4:\$C\$" . (count($report['timeline_rows']) + 3), null, count($report['timeline_rows']))];
@@ -176,11 +176,11 @@ final class ReportService
 
         $withdrawals = $book->createSheet();
         $withdrawals->setTitle('Retiradas');
-        self::writeReportSheet($withdrawals, ['columns' => $report['withdrawal_columns'], 'rows' => $report['withdrawal_rows']], $blue, true);
+        self::writeReportSheet($withdrawals, ['title' => 'Retiradas', 'columns' => $report['withdrawal_columns'], 'rows' => $report['withdrawal_rows']], $blue, true);
 
         $recipients = $book->createSheet();
         $recipients->setTitle('Recebedores');
-        self::writeReportSheet($recipients, ['columns' => $report['recipient_columns'], 'rows' => $report['recipient_rows']], $blue, true);
+        self::writeReportSheet($recipients, ['title' => 'Recebedores', 'columns' => $report['recipient_columns'], 'rows' => $report['recipient_rows']], $blue, true);
     }
 
     private static function writeReportSheet($sheet, array $report, string $blue, bool $freeze): void

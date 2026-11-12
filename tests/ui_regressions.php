@@ -72,7 +72,13 @@ expectContains('app/Services/ReportService.php', 'event_balance_chart', 'Excel d
 expectContains('app/Services/ReportService.php', 'Aproveitamento (%)', 'Relatório do evento calcula indicador de aproveitamento');
 expectContains('app/Services/ReportService.php', "setTitle('Por indústria')", 'Dashboard possui aba por indústria');
 expectContains('app/Services/ReportService.php', "setTitle('Evolução diária')", 'Dashboard possui aba de evolução diária');
-expectContains('app/Services/ReportService.php', "setTitle('Recebedores')", 'Dashboard possui ranking de recebedores');
+expectContains('app/Services/ReportService.php', "'title' => 'Por indústria'", 'Aba por indústria recebe título explícito');
+expectContains('app/Services/ReportService.php', "'title' => 'Evolução diária'", 'Aba de evolução recebe título explícito');
+expectContains('app/Services/ReportService.php', "'title' => 'Retiradas'", 'Aba de retiradas recebe título explícito');
+expectContains('app/Services/ReportService.php', "'title' => 'Recebedores'", 'Aba de recebedores recebe título explícito');
+expectContains('app/Services/DeliveryService.php', '$d[\'items\'] = self::items($id)', 'Reenvio carrega os itens antes de montar o e-mail');
+expectContains('app/Services/DeliveryService.php', 'filter_var($recipientEmail, FILTER_VALIDATE_EMAIL)', 'Reenvio valida o e-mail do recebedor antes de enviar');
+expectContains('app/Services/DeliveryService.php', 'filter_var($industryEmail, FILTER_VALIDATE_EMAIL)', 'Reenvio valida o e-mail da indústria antes de enviar');
 expectNotContains('resources/views/pages/settings/index.php', 'testMail()', 'Configurações não exibem a aba/ação administrativa de teste de e-mail');
 expectNotContains('resources/views/pages/settings/index.php', "'/api/settings/test-email'", 'Configurações não chamam a rota removida de teste de e-mail');
 expectNotContains('app/routes.php', '/api/settings/test-email', 'Rota administrativa de teste de e-mail foi removida');

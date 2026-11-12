@@ -319,19 +319,24 @@ final class DeliveryService
 
     public static function resend(int $id): array
     {
-        $d = self::find($id);
-        $email = $d['received_by_email'];
-        if (!$email && $d['industry']) {
-            $email = Db::value('SELECT contact_email FROM industries WHERE id = ?', [$d['industry']['id']]);
+        $row = Db::fetch(self::SELECT . ' ' . self::FROM . ' WHERE d.id = ?', [$id]);
+        if ($row === null) {
+            throw HttpException::notFound('Protocolo não encontrado.');
         }
-        if (!$email) {
+        $recipientEmail = is_string($row['received_by_email'] ?? null) ? strtolower(trim((string) $row['received_by_email'])) : '';
+        $recipientEmail = filter_var($recipientEmail, FILTER_VALIDATE_EMAIL) ?: null;
+        $industryEmail = is_string($row['industry_email'] ?? null) ? strtolower(trim((string) $row['industry_email'])) : '';
+        $industryEmail = filter_var($industryEmail, FILTER_VALIDATE_EMAIL) ?: null;
+        if ($recipientEmail === null && $industryEmail === null) {
             return ['key' => 'not_sent', 'label' => 'Não enviado', 'sent_at' => null];
         }
+        $d = self::present($row);
+        $d['items'] = self::items($id);
         $attemptKey = 'retry-' . date('YmdHis') . '-' . bin2hex(random_bytes(3));
         NotificationService::protocolEmail(
             $d + ['pdf_path' => Db::value('SELECT pdf_path FROM deliveries WHERE id = ?', [$id]), 'user_id' => Auth::id()],
             $d['items'],
-            $email ? (string) $email : null,
+            $industryEmail,
             null,
             $attemptKey
         );
