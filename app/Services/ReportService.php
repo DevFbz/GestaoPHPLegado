@@ -139,7 +139,7 @@ final class ReportService
             $vals = [new DataSeriesValues('Number', "'Alocação por item'!\$E\$4:\$E\$" . (count($report['rows']) + 3), null, count($report['rows']))];
             $series = new DataSeries(DataSeries::TYPE_BARCHART, DataSeries::GROUPING_CLUSTERED, range(0, count($vals) - 1), [], $cats, $vals);
             $series->setPlotDirection(DataSeries::DIRECTION_COL);
-            $chart = new Chart('event_balance_chart', new Title('Retirado por item'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, 0, new Title('Brindes'), new Title('Quantidade retirada'));
+            $chart = new Chart('event_balance_chart', new Title('Retirado por item'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Brindes'), new Title('Quantidade retirada'));
             $chart->setTopLeftPosition('D4');
             $chart->setBottomRightPosition('K20');
             $summary->addChart($chart);
