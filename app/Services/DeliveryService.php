@@ -177,7 +177,50 @@ final class DeliveryService
             'verification_hash' => $d['verification_hash'],
             'notes' => $d['notes'],
             'created_at' => $d['created_at'],
+            'email_status' => self::emailStatus((int) $d['id']),
         ];
+    }
+
+    /** Returns delivery-mail state; Brevo is confirmed only after SMTP accepts every recipient. */
+    public static function emailStatus(int $deliveryId): array
+    {
+        $rows = Db::fetchAll(
+            "SELECT status, sent_via, sent_at FROM notifications
+              WHERE channel = 'email' AND related_type = 'delivery' AND related_id = ?
+              ORDER BY id ASC",
+            [$deliveryId]
+        );
+        if ($rows === []) {
+            return ['key' => 'not_sent', 'label' => 'Não enviado', 'sent_at' => null];
+        }
+        $allBrevo = count($rows) > 0;
+        $hasQueued = false;
+        $hasFailed = false;
+        $latestSentAt = null;
+        foreach ($rows as $row) {
+            if ($row['status'] !== 'enviado' || $row['sent_via'] !== 'brevo_smtp') {
+                $allBrevo = false;
+            }
+            if ($row['status'] === 'fila') {
+                $hasQueued = true;
+            }
+            if ($row['status'] === 'falhou') {
+                $hasFailed = true;
+            }
+            if ($row['status'] === 'enviado' && $row['sent_at'] !== null) {
+                $latestSentAt = $row['sent_at'];
+            }
+        }
+        if ($allBrevo) {
+            return ['key' => 'brevo_accepted', 'label' => 'Aceito pela Brevo', 'sent_at' => $latestSentAt];
+        }
+        if ($hasFailed) {
+            return ['key' => 'failed', 'label' => 'Falha no envio', 'sent_at' => $latestSentAt];
+        }
+        if ($hasQueued) {
+            return ['key' => 'queued', 'label' => 'Na fila de envio', 'sent_at' => $latestSentAt];
+        }
+        return ['key' => 'sent_other', 'label' => 'Aceito por outro transporte', 'sent_at' => $latestSentAt];
     }
 
     public static function items(int $deliveryId): array

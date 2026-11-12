@@ -240,7 +240,7 @@ final class NotificationService
                 try {
                     $abs = $row['attachment_path'] ? ImageService::absolute($row['attachment_path']) : null;
                     Mailer::send((string) $row['to_email'], (string) $row['subject'], (string) $row['body'], ($abs && is_file($abs)) ? [$abs] : []);
-                    Db::update('notifications', ['status' => 'enviado', 'sent_at' => now(), 'attempts' => (int) $row['attempts'] + 1], ['id' => (int) $row['id']]);
+                    Db::update('notifications', ['status' => 'enviado', 'sent_at' => now(), 'sent_via' => Mailer::sentVia(), 'attempts' => (int) $row['attempts'] + 1], ['id' => (int) $row['id']]);
                     $sent++;
                 } catch (Throwable $e) {
                     $attempts = (int) $row['attempts'] + 1;

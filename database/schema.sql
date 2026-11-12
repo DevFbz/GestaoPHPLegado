@@ -524,6 +524,7 @@ CREATE TABLE notifications (
   dedupe_key       VARCHAR(150)    NULL,
   read_at          DATETIME        NULL,
   sent_at          DATETIME        NULL,
+  sent_via         VARCHAR(32)     NULL,
   created_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_notifications_dedupe (dedupe_key),

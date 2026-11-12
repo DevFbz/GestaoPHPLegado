@@ -23,6 +23,15 @@ final class Mailer
         return self::driver() === 'smtp';
     }
 
+    public static function sentVia(): string
+    {
+        if (!self::isSmtp()) {
+            return 'log';
+        }
+        $host = strtolower(rtrim((string) Config::get('mail.host', ''), '.'));
+        return $host === 'smtp-relay.brevo.com' ? 'brevo_smtp' : 'smtp';
+    }
+
     /** @param array<string> $attachments absolute file paths */
     public static function send(string $to, string $subject, string $html, array $attachments = []): void
     {

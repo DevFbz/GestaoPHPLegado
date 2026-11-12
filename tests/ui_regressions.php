@@ -56,6 +56,10 @@ expectContains('resources/views/pages/settings/index.php', 'data-no-loading', 'D
 expectContains('resources/views/pages/settings/index.php', 'Exportar todos os dados (Excel)', 'Configurações mantém exportação completa em português');
 expectContains('resources/views/pages/deliveries/index.php', 'last_page', 'Comprovantes considera todas as páginas da API');
 expectContains('resources/views/pages/deliveries/index.php', 'per_page: 100', 'Comprovantes busca páginas no limite permitido');
+expectContains('resources/views/pages/deliveries/index.php', 'email_status', 'Comprovantes exibem o status de envio do protocolo');
+expectContains('app/Services/DeliveryService.php', 'Aceito pela Brevo', 'Comprovantes identificam aceite confirmado pela Brevo');
+expectContains('app/Services/DeliveryService.php', 'brevo_smtp', 'API identifica o transporte Brevo do comprovante');
+expectContains('app/Services/NotificationService.php', 'sent_via', 'Fila persiste o transporte que aceitou o e-mail');
 expectNotContains('resources/views/pages/settings/index.php', 'testMail()', 'Configurações não exibem a aba/ação administrativa de teste de e-mail');
 expectNotContains('resources/views/pages/settings/index.php', "'/api/settings/test-email'", 'Configurações não chamam a rota removida de teste de e-mail');
 expectNotContains('app/routes.php', '/api/settings/test-email', 'Rota administrativa de teste de e-mail foi removida');

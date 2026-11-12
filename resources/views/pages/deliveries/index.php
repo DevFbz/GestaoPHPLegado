@@ -23,6 +23,15 @@
         <b x-text="d.code"></b>
         <span class="badge text-bg-secondary" x-text="d.type_label"></span>
       </div>
+      <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+        <span class="badge" :class="{
+          'text-bg-success': d.email_status?.key === 'brevo_accepted',
+          'text-bg-warning': d.email_status?.key === 'queued',
+          'text-bg-danger': d.email_status?.key === 'failed',
+          'text-bg-secondary': !['brevo_accepted', 'queued', 'failed'].includes(d.email_status?.key)
+        }" x-text="d.email_status?.label || 'Status de e-mail não disponível'"></span>
+        <span class="small text-muted" x-show="d.email_status?.key === 'brevo_accepted'">Aceite confirmado pelo SMTP Brevo; isso não garante leitura ou entrega na caixa de entrada.</span>
+      </div>
       <div x-text="d.received_by_name"></div>
       <div class="small text-muted" x-text="Api.fmt.datetime(d.created_at)"></div>
     </a>

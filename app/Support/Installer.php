@@ -194,6 +194,7 @@ final class Installer
         self::grantGestorEventAccess();
         self::ensureStockMovementAttachment();
         self::ensureDeliverySignaturePng();
+        self::ensureNotificationTransport();
         self::ensureExitOrders();
         self::ensureExitOrderEvidence();
         self::ensureItemIndustry();
@@ -370,6 +371,19 @@ final class Installer
         } else {
             Db::pdo()->exec('ALTER TABLE deliveries ADD COLUMN signature_png MEDIUMTEXT NULL AFTER signature_path');
         }
+    }
+
+    /** Stores the transport that accepted each queued e-mail. */
+    public static function ensureNotificationTransport(): void
+    {
+        if (!in_array('notifications', self::tables(), true) || Db::hasColumn('notifications', 'sent_via')) {
+            return;
+        }
+        if (Db::isSqlite()) {
+            Db::pdo()->exec('ALTER TABLE notifications ADD COLUMN sent_via TEXT NULL');
+            return;
+        }
+        Db::pdo()->exec('ALTER TABLE notifications ADD COLUMN sent_via VARCHAR(32) NULL AFTER sent_at');
     }
 
     /** Adds signed withdrawal evidence to authorized stock exits. */
