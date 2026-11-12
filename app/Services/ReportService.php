@@ -9,7 +9,17 @@ use App\Core\Db;
 use App\Core\HttpException;
 use App\Core\Request;
 use App\Core\Response;
+use PhpOffice\PhpSpreadsheet\Chart\Chart;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeries;
+use PhpOffice\PhpSpreadsheet\Chart\DataSeriesValues;
+use PhpOffice\PhpSpreadsheet\Chart\Layout;
+use PhpOffice\PhpSpreadsheet\Chart\Legend;
+use PhpOffice\PhpSpreadsheet\Chart\PlotArea;
+use PhpOffice\PhpSpreadsheet\Chart\Title;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 final class ReportService
@@ -66,33 +76,127 @@ final class ReportService
         $report = self::run($type, $request);
         $filename = $type . '_' . date('Ymd');
         if ($format === 'csv') {
-            $csv = "\xEF\xBB\xBF";
-            $csv .= implode(';', $report['columns']) . "\r\n";
+            $csv = "\xEF\xBB\xBF" . implode(';', $report['columns']) . "\r\n";
             foreach ($report['rows'] as $row) {
                 $csv .= implode(';', array_map([self::class, 'csvCell'], $row)) . "\r\n";
             }
             return Response::download($csv, $filename . '.csv', 'text/csv; charset=utf-8');
         }
-        $ss = new Spreadsheet();
-        $sheet = $ss->getActiveSheet();
-        $sheet->setTitle(mb_substr(self::TYPES[$type], 0, 31));
-        $col = 1;
-        foreach ($report['columns'] as $h) {
-            $sheet->setCellValue([$col++, 1], $h);
+        $book = new Spreadsheet();
+        $blue = self::reportBlue();
+        if ($type === 'event_report') {
+            self::buildEventWorkbook($book, $report, $blue);
+        } else {
+            $sheet = $book->getActiveSheet();
+            $sheet->setTitle(mb_substr($report['title'], 0, 31));
+            self::writeReportSheet($sheet, $report, $blue, true);
         }
-        $r = 2;
-        foreach ($report['rows'] as $row) {
-            $c = 1;
-            foreach ($row as $v) {
-                $sheet->setCellValue([$c++, $r], $v);
-            }
-            $r++;
+        $book->setActiveSheetIndex(0);
+        $tmp = tempnam(sys_get_temp_dir(), $filename . '_');
+        if ($tmp === false) throw new \RuntimeException('Não foi possível preparar a exportação.');
+        try {
+            (new Xlsx($book))->save($tmp);
+            $bin = file_get_contents($tmp);
+            if ($bin === false || strlen($bin) < 4 || substr($bin, 0, 2) !== 'PK') throw new \RuntimeException('A planilha exportada é inválida.');
+            return Response::download($bin, $filename . '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        } finally {
+            $book->disconnectWorksheets();
+            @unlink($tmp);
         }
-        $tmp = sys_get_temp_dir() . '/' . $filename . '.xlsx';
-        (new Xlsx($ss))->save($tmp);
-        $bin = (string) file_get_contents($tmp);
-        @unlink($tmp);
-        return Response::download($bin, $filename . '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+
+    private static function buildEventWorkbook(Spreadsheet $book, array $report, string $blue): void
+    {
+        $summary = $book->getActiveSheet();
+        $summary->setTitle('Resumo do evento');
+        $eventName = (string) ($report['event_name'] ?? 'Evento');
+        $summary->mergeCells('A1:H1');
+        $summary->setCellValue('A1', 'Relatório executivo · ' . $eventName);
+        $summary->mergeCells('A2:H2');
+        $summary->setCellValue('A2', 'Indicadores de alocação, retirada, saldo e atendimento · gerado em ' . date('d/m/Y H:i'));
+        $summary->getStyle('A1:H1')->applyFromArray(self::reportTitleStyle($blue));
+        $summary->getStyle('A2:H2')->applyFromArray(self::reportSubtitleStyle($blue));
+        $summary->getRowDimension(1)->setRowHeight(30);
+        $summary->getRowDimension(2)->setRowHeight(24);
+        $summary->fromArray(['Indicador', 'Valor'], null, 'A4');
+        $summary->getStyle('A4:B4')->applyFromArray(self::reportHeaderStyle($blue));
+        $row = 5;
+        foreach (($report['summary'] ?? []) as $label => $value) {
+            $summary->setCellValue("A{$row}", $label);
+            $summary->setCellValue("B{$row}", is_numeric($value) ? (float) $value : $value);
+            $row++;
+        }
+        $summary->getStyle("A4:B" . max(4, $row - 1))->getBorders()->getBottom()->setBorderStyle(Border::BORDER_HAIR)->getColor()->setARGB('FFD7E3F4');
+        $summary->getColumnDimension('A')->setWidth(32);
+        $summary->getColumnDimension('B')->setWidth(20);
+        $summary->freezePane('A5');
+
+        $data = $book->createSheet();
+        $data->setTitle('Alocação por item');
+        self::writeReportSheet($data, ['columns' => $report['columns'], 'rows' => $report['rows']], $blue, true);
+        if (count($report['rows']) > 0) {
+            $cats = [new DataSeriesValues('String', "'Alocação por item'!\$C\$4:\$C\$" . (count($report['rows']) + 3), null, count($report['rows']))];
+            $vals = [new DataSeriesValues('Number', "'Alocação por item'!\$E\$4:\$E\$" . (count($report['rows']) + 3), null, count($report['rows']))];
+            $series = new DataSeries(DataSeries::TYPE_BARCHART, DataSeries::GROUPING_CLUSTERED, range(0, count($vals) - 1), [], $cats, $vals);
+            $series->setPlotDirection(DataSeries::DIRECTION_COL);
+            $chart = new Chart('event_balance_chart', new Title('Retirado por item'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, 0, new Title('Brindes'), new Title('Quantidade retirada'));
+            $chart->setTopLeftPosition('D4');
+            $chart->setBottomRightPosition('K20');
+            $summary->addChart($chart);
+        }
+
+        $withdrawals = $book->createSheet();
+        $withdrawals->setTitle('Retiradas');
+        self::writeReportSheet($withdrawals, ['columns' => $report['withdrawal_columns'], 'rows' => $report['withdrawal_rows']], $blue, true);
+    }
+
+    private static function writeReportSheet($sheet, array $report, string $blue, bool $freeze): void
+    {
+        $columns = $report['columns'] ?? [];
+        $rows = $report['rows'] ?? [];
+        $last = max(1, count($columns));
+        $letter = self::columnLetter($last);
+        $sheet->mergeCells("A1:{$letter}1");
+        $sheet->setCellValue('A1', $report['title'] ?? 'Relatório operacional');
+        $sheet->mergeCells("A2:{$letter}2");
+        $sheet->setCellValue('A2', 'Dados consistentes do sistema · exportado em ' . date('d/m/Y H:i'));
+        $sheet->getStyle("A1:{$letter}1")->applyFromArray(self::reportTitleStyle($blue));
+        $sheet->getStyle("A2:{$letter}2")->applyFromArray(self::reportSubtitleStyle($blue));
+        foreach ($columns as $i => $header) {
+            $cell = $sheet->getCell([$i + 1, 3]);
+            $cell->setValue($header);
+            $cell->getStyle()->applyFromArray(self::reportHeaderStyle($blue));
+            $sheet->getColumnDimension(self::columnLetter($i + 1))->setWidth(max(14, min(34, mb_strlen((string) $header) + 5)));
+        }
+        foreach ($rows as $r => $data) {
+            foreach ($data as $c => $value) $sheet->setCellValue([$c + 1, $r + 4], $value);
+            if ($r % 2 === 1) $sheet->getStyle("A" . ($r + 4) . ":{$letter}" . ($r + 4))->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF5F9FF');
+        }
+        $end = max(3, count($rows) + 3);
+        if ($columns !== []) $sheet->setAutoFilter("A3:{$letter}{$end}");
+        if ($freeze) $sheet->freezePane('A4');
+        $sheet->getSheetView()->setZoomScale(90);
+    }
+
+    private static function reportBlue(): string
+    {
+        $color = strtoupper((string) SettingsService::get('primary_color', '#2563EB'));
+        return preg_match('/^#[0-9A-F]{6}$/', $color) ? substr($color, 1) : '2563EB';
+    }
+
+    private static function reportTitleStyle(string $blue): array
+    {
+        return ['font' => ['bold' => true, 'size' => 16, 'color' => ['rgb' => 'FFFFFF']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $blue]], 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]];
+    }
+
+    private static function reportSubtitleStyle(string $blue): array
+    {
+        return ['font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => $blue]], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'EAF2FF']], 'alignment' => ['vertical' => Alignment::VERTICAL_CENTER]];
+    }
+
+    private static function reportHeaderStyle(string $blue): array
+    {
+        return ['font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $blue]], 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true]];
     }
 
     private static function industryAgg(string $expr = 'ind.name'): string
@@ -368,14 +472,28 @@ final class ReportService
               WHERE d.event_id = ? ORDER BY d.created_at',
             [$eid]
         );
-        $data = array_map(fn ($r) => [$r['industry'], $r['code'], $r['name'], $r['inicial'], $r['retirado'], $r['saldo']], $rows);
-        foreach ($who as $w) {
-            $data[] = ['RETIRADA', $w['created_at'], $w['industry'], $w['item_name'], $w['qty'], $w['received_by_name']];
-        }
+        $data = array_map(fn ($r) => [$r['industry'], $r['code'], $r['name'], (int) $r['inicial'], (int) $r['retirado'], (int) $r['saldo']], $rows);
+        $allocated = array_sum(array_map(fn ($r) => (int) $r['inicial'], $rows));
+        $withdrawn = array_sum(array_map(fn ($r) => (int) $r['retirado'], $rows));
+        $summary = [
+            'Itens controlados' => count($rows),
+            'Indústrias participantes' => count(array_unique(array_filter(array_map(fn ($r) => (string) $r['industry'], $rows)))),
+            'Quantidade alocada' => $allocated,
+            'Quantidade retirada' => $withdrawn,
+            'Saldo disponível' => $allocated - $withdrawn,
+            'Aproveitamento (%)' => $allocated > 0 ? round(($withdrawn / $allocated) * 100, 1) : 0,
+            'Protocolos de retirada' => count(array_unique(array_map(fn ($w) => (string) $w['created_at'] . '|' . (string) $w['received_by_name'], $who))),
+        ];
+        $withdrawalColumns = ['Data/hora', 'Indústria', 'Brinde', 'Quantidade', 'Recebedor'];
+        $withdrawalRows = array_map(fn ($w) => [$w['created_at'], $w['industry'] ?: '—', $w['item_name'], (int) $w['qty'], $w['received_by_name']], $who);
         return [
             'title' => 'Evento: ' . ($event['name'] ?? $eid),
-            'columns' => ['Indústria / tipo', 'Código / data', 'Brinde', 'Estoque inicial', 'Retirado', 'Saldo / quem'],
-            'rows' => $data,
+            'event_name' => $event['name'] ?? ('Evento #' . $eid),
+            'summary' => $summary,
+            'columns' => ['Indústria', 'Código', 'Brinde', 'Alocado', 'Retirado', 'Saldo'],
+            'rows' => array_map(fn ($r) => [$r[0], $r[1], $r[2], $r[3], $r[4], $r[5]], $data),
+            'withdrawal_columns' => $withdrawalColumns,
+            'withdrawal_rows' => $withdrawalRows,
         ];
     }
 }

@@ -60,6 +60,11 @@ expectContains('resources/views/pages/deliveries/index.php', 'email_status', 'Co
 expectContains('app/Services/DeliveryService.php', 'Aceito pela Brevo', 'Comprovantes identificam aceite confirmado pela Brevo');
 expectContains('app/Services/DeliveryService.php', 'brevo_smtp', 'API identifica o transporte Brevo do comprovante');
 expectContains('app/Services/NotificationService.php', 'sent_via', 'Fila persiste o transporte que aceitou o e-mail');
+expectContains('resources/views/pages/reports/index.php', "type === 'event_report'", 'Relatório de evento exibe seletor específico');
+expectContains('resources/views/pages/reports/index.php', 'eventId', 'Relatório de evento envia o identificador do evento');
+expectContains('app/Services/ReportService.php', 'buildEventWorkbook', 'Excel do evento possui workbook executivo');
+expectContains('app/Services/ReportService.php', 'event_balance_chart', 'Excel do evento possui gráfico');
+expectContains('app/Services/ReportService.php', 'Aproveitamento (%)', 'Relatório do evento calcula indicador de aproveitamento');
 expectNotContains('resources/views/pages/settings/index.php', 'testMail()', 'Configurações não exibem a aba/ação administrativa de teste de e-mail');
 expectNotContains('resources/views/pages/settings/index.php', "'/api/settings/test-email'", 'Configurações não chamam a rota removida de teste de e-mail');
 expectNotContains('app/routes.php', '/api/settings/test-email', 'Rota administrativa de teste de e-mail foi removida');
