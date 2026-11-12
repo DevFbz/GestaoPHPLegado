@@ -56,8 +56,13 @@ expectContains('resources/views/pages/settings/index.php', 'data-no-loading', 'D
 expectContains('resources/views/pages/settings/index.php', 'Exportar todos os dados (Excel)', 'Configurações mantém exportação completa em português');
 expectContains('resources/views/pages/deliveries/index.php', 'last_page', 'Comprovantes considera todas as páginas da API');
 expectContains('resources/views/pages/deliveries/index.php', 'per_page: 100', 'Comprovantes busca páginas no limite permitido');
-expectContains('resources/views/pages/deliveries/index.php', 'email_status', 'Comprovantes exibem o status de envio do protocolo');
-expectContains('app/Services/DeliveryService.php', 'Aceito pela Brevo', 'Comprovantes identificam aceite confirmado pela Brevo');
+expectContains('resources/views/pages/deliveries/index.php', "'Não enviado'", 'Status alternativo de transporte aparece como não enviado');
+expectContains('resources/views/pages/deliveries/show.php', 'Enviar email automático', 'Detalhe usa o nome correto para reenvio automático');
+expectContains('resources/views/pages/deliveries/show.php', 'email_status', 'Detalhe do protocolo exibe status do e-mail');
+expectContains('app/Services/DeliveryService.php', "'label' => 'Enviado'", 'API identifica envio confirmado como Enviado');
+expectContains('app/Services/DeliveryService.php', 'latest[(string) $row[\'to_email\']] = $row', 'Status usa a tentativa mais recente por destinatário');
+expectContains('app/Services/NotificationService.php', '$attemptKey', 'Reenvio gera uma nova chave de tentativa');
+expectNotContains('app/Services/DeliveryService.php', 'Aceito por outro transporte', 'API não exibe aceite por transporte alternativo');
 expectContains('app/Services/DeliveryService.php', 'brevo_smtp', 'API identifica o transporte Brevo do comprovante');
 expectContains('app/Services/NotificationService.php', 'sent_via', 'Fila persiste o transporte que aceitou o e-mail');
 expectContains('resources/views/pages/reports/index.php', "type === 'event_report'", 'Relatório de evento exibe seletor específico');
@@ -65,6 +70,9 @@ expectContains('resources/views/pages/reports/index.php', 'eventId', 'Relatório
 expectContains('app/Services/ReportService.php', 'buildEventWorkbook', 'Excel do evento possui workbook executivo');
 expectContains('app/Services/ReportService.php', 'event_balance_chart', 'Excel do evento possui gráfico');
 expectContains('app/Services/ReportService.php', 'Aproveitamento (%)', 'Relatório do evento calcula indicador de aproveitamento');
+expectContains('app/Services/ReportService.php', "setTitle('Por indústria')", 'Dashboard possui aba por indústria');
+expectContains('app/Services/ReportService.php', "setTitle('Evolução diária')", 'Dashboard possui aba de evolução diária');
+expectContains('app/Services/ReportService.php', "setTitle('Recebedores')", 'Dashboard possui ranking de recebedores');
 expectNotContains('resources/views/pages/settings/index.php', 'testMail()', 'Configurações não exibem a aba/ação administrativa de teste de e-mail');
 expectNotContains('resources/views/pages/settings/index.php', "'/api/settings/test-email'", 'Configurações não chamam a rota removida de teste de e-mail');
 expectNotContains('app/routes.php', '/api/settings/test-email', 'Rota administrativa de teste de e-mail foi removida');

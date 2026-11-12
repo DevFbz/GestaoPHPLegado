@@ -147,9 +147,40 @@ final class ReportService
             $summary->addChart($chart);
         }
 
+        $industry = $book->createSheet();
+        $industry->setTitle('Por indústria');
+        self::writeReportSheet($industry, ['columns' => $report['industry_columns'], 'rows' => $report['industry_rows']], $blue, true);
+        if (count($report['industry_rows']) > 0) {
+            $cats = [new DataSeriesValues('String', "'Por indústria'!\$A\$4:\$A\$" . (count($report['industry_rows']) + 3), null, count($report['industry_rows']))];
+            $vals = [new DataSeriesValues('Number', "'Por indústria'!\$E\$4:\$E\$" . (count($report['industry_rows']) + 3), null, count($report['industry_rows']))];
+            $series = new DataSeries(DataSeries::TYPE_BARCHART, DataSeries::GROUPING_CLUSTERED, [0], [], $cats, $vals);
+            $series->setPlotDirection(DataSeries::DIRECTION_COL);
+            $chart = new Chart('event_industry_chart', new Title('Retiradas por indústria'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Indústrias'), new Title('Quantidade retirada'));
+            $chart->setTopLeftPosition('D22');
+            $chart->setBottomRightPosition('K38');
+            $summary->addChart($chart);
+        }
+
+        $timeline = $book->createSheet();
+        $timeline->setTitle('Evolução diária');
+        self::writeReportSheet($timeline, ['columns' => $report['timeline_columns'], 'rows' => $report['timeline_rows']], $blue, true);
+        if (count($report['timeline_rows']) > 0) {
+            $cats = [new DataSeriesValues('String', "'Evolução diária'!\$A\$4:\$A\$" . (count($report['timeline_rows']) + 3), null, count($report['timeline_rows']))];
+            $vals = [new DataSeriesValues('Number', "'Evolução diária'!\$C\$4:\$C\$" . (count($report['timeline_rows']) + 3), null, count($report['timeline_rows']))];
+            $series = new DataSeries(DataSeries::TYPE_LINECHART, DataSeries::GROUPING_STANDARD, [0], [], $cats, $vals);
+            $chart = new Chart('event_timeline_chart', new Title('Retiradas ao longo do tempo'), new Legend(Legend::POSITION_BOTTOM, null, false), new PlotArea(new Layout(), [$series]), true, DataSeries::EMPTY_AS_GAP, new Title('Data'), new Title('Quantidade'));
+            $chart->setTopLeftPosition('D40');
+            $chart->setBottomRightPosition('K56');
+            $summary->addChart($chart);
+        }
+
         $withdrawals = $book->createSheet();
         $withdrawals->setTitle('Retiradas');
         self::writeReportSheet($withdrawals, ['columns' => $report['withdrawal_columns'], 'rows' => $report['withdrawal_rows']], $blue, true);
+
+        $recipients = $book->createSheet();
+        $recipients->setTitle('Recebedores');
+        self::writeReportSheet($recipients, ['columns' => $report['recipient_columns'], 'rows' => $report['recipient_rows']], $blue, true);
     }
 
     private static function writeReportSheet($sheet, array $report, string $blue, bool $freeze): void
@@ -485,6 +516,25 @@ final class ReportService
               WHERE d.event_id = ? ORDER BY d.created_at',
             [$eid]
         );
+        $recipientRows = Db::fetchAll(
+            'SELECT d.received_by_name, COUNT(DISTINCT d.id) AS protocols, COALESCE(SUM(di.qty), 0) AS quantity
+               FROM deliveries d JOIN delivery_items di ON di.delivery_id = d.id
+              WHERE d.event_id = ? GROUP BY d.received_by_name ORDER BY quantity DESC, d.received_by_name',
+            [$eid]
+        );
+        $industryRows = Db::fetchAll(
+            'SELECT ind.name AS industry, COUNT(DISTINCT a.item_id) AS items, SUM(a.qty_allocated) AS allocated,
+                    SUM(a.qty_withdrawn) AS withdrawn, SUM(a.qty_allocated - a.qty_withdrawn) AS saldo
+               FROM event_allocations a JOIN industries ind ON ind.id = a.industry_id
+              WHERE a.event_id = ? GROUP BY ind.id, ind.name ORDER BY withdrawn DESC, ind.name',
+            [$eid]
+        );
+        $timelineRows = Db::fetchAll(
+            'SELECT SUBSTR(d.created_at, 1, 10) AS day, COUNT(DISTINCT d.id) AS protocols, SUM(di.qty) AS quantity
+               FROM deliveries d JOIN delivery_items di ON di.delivery_id = d.id
+              WHERE d.event_id = ? GROUP BY SUBSTR(d.created_at, 1, 10) ORDER BY day',
+            [$eid]
+        );
         $data = array_map(fn ($r) => [$r['industry'], $r['code'], $r['name'], (int) $r['inicial'], (int) $r['retirado'], (int) $r['saldo']], $rows);
         $allocated = array_sum(array_map(fn ($r) => (int) $r['inicial'], $rows));
         $withdrawn = array_sum(array_map(fn ($r) => (int) $r['retirado'], $rows));
@@ -507,6 +557,12 @@ final class ReportService
             'rows' => array_map(fn ($r) => [$r[0], $r[1], $r[2], $r[3], $r[4], $r[5]], $data),
             'withdrawal_columns' => $withdrawalColumns,
             'withdrawal_rows' => $withdrawalRows,
+            'industry_columns' => ['Indústria', 'Itens', 'Alocado', 'Retirado', 'Saldo', 'Aproveitamento (%)'],
+            'industry_rows' => array_map(fn ($r) => [$r['industry'], (int) $r['items'], (int) $r['allocated'], (int) $r['withdrawn'], (int) $r['saldo'], (int) $r['allocated'] > 0 ? round(((int) $r['withdrawn'] / (int) $r['allocated']) * 100, 1) : 0], $industryRows),
+            'timeline_columns' => ['Data', 'Protocolos', 'Quantidade retirada'],
+            'timeline_rows' => array_map(fn ($r) => [$r['day'], (int) $r['protocols'], (int) $r['quantity']], $timelineRows),
+            'recipient_columns' => ['Recebedor', 'Protocolos', 'Quantidade retirada'],
+            'recipient_rows' => array_map(fn ($r) => [$r['received_by_name'], (int) $r['protocols'], (int) $r['quantity']], $recipientRows),
         ];
     }
 }

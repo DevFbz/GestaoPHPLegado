@@ -181,11 +181,11 @@ final class DeliveryService
         ];
     }
 
-    /** Returns delivery-mail state; Brevo is confirmed only after SMTP accepts every recipient. */
+    /** Returns the latest delivery-mail attempt per recipient; Brevo confirmation is required for Enviado. */
     public static function emailStatus(int $deliveryId): array
     {
         $rows = Db::fetchAll(
-            "SELECT status, sent_via, sent_at FROM notifications
+            "SELECT to_email, status, sent_via, sent_at, id FROM notifications
               WHERE channel = 'email' AND related_type = 'delivery' AND related_id = ?
               ORDER BY id ASC",
             [$deliveryId]
@@ -193,11 +193,15 @@ final class DeliveryService
         if ($rows === []) {
             return ['key' => 'not_sent', 'label' => 'Não enviado', 'sent_at' => null];
         }
-        $allBrevo = count($rows) > 0;
+        $latest = [];
+        foreach ($rows as $row) {
+            $latest[(string) $row['to_email']] = $row;
+        }
+        $allBrevo = $latest !== [];
         $hasQueued = false;
         $hasFailed = false;
         $latestSentAt = null;
-        foreach ($rows as $row) {
+        foreach ($latest as $row) {
             if ($row['status'] !== 'enviado' || $row['sent_via'] !== 'brevo_smtp') {
                 $allBrevo = false;
             }
@@ -208,11 +212,11 @@ final class DeliveryService
                 $hasFailed = true;
             }
             if ($row['status'] === 'enviado' && $row['sent_at'] !== null) {
-                $latestSentAt = $row['sent_at'];
+                $latestSentAt = $latestSentAt === null || (string) $row['sent_at'] > $latestSentAt ? $row['sent_at'] : $latestSentAt;
             }
         }
         if ($allBrevo) {
-            return ['key' => 'brevo_accepted', 'label' => 'Aceito pela Brevo', 'sent_at' => $latestSentAt];
+            return ['key' => 'sent', 'label' => 'Enviado', 'sent_at' => $latestSentAt];
         }
         if ($hasFailed) {
             return ['key' => 'failed', 'label' => 'Falha no envio', 'sent_at' => $latestSentAt];
@@ -220,7 +224,7 @@ final class DeliveryService
         if ($hasQueued) {
             return ['key' => 'queued', 'label' => 'Na fila de envio', 'sent_at' => $latestSentAt];
         }
-        return ['key' => 'sent_other', 'label' => 'Aceito por outro transporte', 'sent_at' => $latestSentAt];
+        return ['key' => 'not_sent', 'label' => 'Não enviado', 'sent_at' => $latestSentAt];
     }
 
     public static function items(int $deliveryId): array
@@ -313,19 +317,23 @@ final class DeliveryService
         return ImageService::writeBytes($rel, $bin);
     }
 
-    public static function resend(int $id): void
+    public static function resend(int $id): array
     {
         $d = self::find($id);
         $email = $d['received_by_email'];
         if (!$email && $d['industry']) {
             $email = Db::value('SELECT contact_email FROM industries WHERE id = ?', [$d['industry']['id']]);
         }
+        $attemptKey = 'retry-' . date('YmdHis') . '-' . bin2hex(random_bytes(3));
         NotificationService::protocolEmail(
             $d + ['pdf_path' => Db::value('SELECT pdf_path FROM deliveries WHERE id = ?', [$id]), 'user_id' => Auth::id()],
             $d['items'],
-            $email ? (string) $email : null
+            $email ? (string) $email : null,
+            null,
+            $attemptKey
         );
         NotificationService::flush();
+        return self::emailStatus($id);
     }
 
     public static function finalizePdfAndMail(int $deliveryId): array

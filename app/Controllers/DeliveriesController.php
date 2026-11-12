@@ -35,7 +35,6 @@ final class DeliveriesController
 
     public function resend(Request $request): Response
     {
-        DeliveryService::resend($request->id());
-        return Response::ok(['resent' => true]);
+        return Response::ok(['resent' => true, 'email_status' => DeliveryService::resend($request->id())]);
     }
 }

@@ -111,7 +111,7 @@ final class NotificationService
         }
     }
 
-    public static function protocolEmail(array $delivery, array $items, ?string $industryEmail, ?int $remaining = null): array
+    public static function protocolEmail(array $delivery, array $items, ?string $industryEmail, ?int $remaining = null, ?string $attemptKey = null): array
     {
         $tos = [];
         foreach ([$delivery['received_by_email'] ?? null, $industryEmail] as $candidate) {
@@ -151,7 +151,7 @@ final class NotificationService
         $attachment = !empty($delivery['pdf_path']) ? ImageService::absolute($delivery['pdf_path']) : null;
         $userId = $delivery['user_id'] ?? Auth::id();
         foreach ($tos as $i => $to) {
-            self::queueEmail(is_numeric($userId) ? (int) $userId : null, (string) $to, 'Protocolo ' . $delivery['code'] . ' — comprovante de retirada', $html, $attachment, 'protocol-' . $delivery['id'] . '-' . $i, 'delivery', (int) $delivery['id']);
+            self::queueEmail(is_numeric($userId) ? (int) $userId : null, (string) $to, 'Protocolo ' . $delivery['code'] . ' — comprovante de retirada', $html, $attachment, 'protocol-' . $delivery['id'] . '-' . $i . ($attemptKey ? '-' . $attemptKey : ''), 'delivery', (int) $delivery['id']);
         }
         if (Auth::id()) {
             $deliveryMessage = Mailer::isSmtp()

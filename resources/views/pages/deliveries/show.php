@@ -29,15 +29,15 @@ ob_start(); ?>
           </tbody>
         </table>
       </div>
-      <img x-show="d.signature_url" :src="d.signature_url" alt="Assinatura" style="max-height:80px;background:#fff">
-      <div class="alert alert-info small mt-3 mb-2">
-        Nesta demonstração o sistema <strong>não envia e-mail sozinho</strong> (não temos a senha SMTP da empresa).
-        Use o botão abaixo para abrir o seu Gmail/Outlook com as informações prontas, inclusive a indústria e o link do PDF.
+      <div class="d-flex flex-wrap gap-2 align-items-center mt-2">
+        <span class="badge" :class="d.email_status?.key === 'sent' ? 'text-bg-success' : (d.email_status?.key === 'failed' ? 'text-bg-danger' : 'text-bg-secondary')" x-text="d.email_status?.label || 'Não enviado'"></span>
+        <span class="small text-muted" x-show="d.email_status?.key === 'sent'">Envio aceito pelo SMTP Brevo.</span>
       </div>
+      <img x-show="d.signature_url" :src="d.signature_url" alt="Assinatura" style="max-height:80px;background:#fff">
       <div class="mt-2 d-flex flex-wrap gap-2">
         <a class="btn btn-primary" :href="mailtoHref()" target="_blank">Enviar estas informações por e-mail</a>
         <a class="btn btn-outline-secondary" :href="d.pdf_url" target="_blank">Baixar PDF</a>
-        <button class="btn btn-outline-secondary" @click="resend">Tentar e-mail automático</button>
+        <button class="btn btn-outline-secondary" @click="resend" :disabled="sending" x-text="sending ? 'Enviando…' : 'Enviar email automático'"></button>
       </div>
     </div>
   </template>
@@ -48,7 +48,7 @@ ob_start(); ?>
 <script>
 function protShow(id) {
   return {
-    d: null,
+    d: null, sending: false,
     async load() { this.d = (await Api.get('/api/deliveries/' + id)).data; },
     mailtoHref() {
       const d = this.d || {};
@@ -74,10 +74,14 @@ function protShow(id) {
       return 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
     },
     async resend() {
+      this.sending = true;
       try {
-        await Api.post('/api/deliveries/' + id + '/resend');
-        UI.toast('Pedido de e-mail registrado. Nesta demonstração ele não sai sozinho — use “Enviar estas informações por e-mail”.', 'ok');
+        const response = await Api.post('/api/deliveries/' + id + '/resend');
+        await this.load();
+        const status = response.data && response.data.email_status ? response.data.email_status : this.d.email_status;
+        UI.toast(status && status.key === 'sent' ? 'E-mail enviado e aceito pelo Brevo.' : 'O e-mail não foi confirmado pelo Brevo: ' + ((status && status.label) || 'Não enviado') + '.', status && status.key === 'sent' ? 'ok' : 'err');
       } catch (e) { UI.toast(e.message, 'err'); }
+      finally { this.sending = false; }
     }
   };
 }
