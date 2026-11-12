@@ -95,7 +95,9 @@ final class ReportService
         $tmp = tempnam(sys_get_temp_dir(), $filename . '_');
         if ($tmp === false) throw new \RuntimeException('Não foi possível preparar a exportação.');
         try {
-            (new Xlsx($book))->save($tmp);
+            $writer = new Xlsx($book);
+            $writer->setIncludeCharts(true);
+            $writer->save($tmp);
             $bin = file_get_contents($tmp);
             if ($bin === false || strlen($bin) < 4 || substr($bin, 0, 2) !== 'PK') throw new \RuntimeException('A planilha exportada é inválida.');
             return Response::download($bin, $filename . '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
