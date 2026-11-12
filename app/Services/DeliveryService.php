@@ -388,16 +388,21 @@ final class DeliveryService
             $rows[] = $d + ['pdf_path' => $row['pdf_path'] ?? null];
         }
         $subject = 'Comprovantes de retirada — ' . count($rows) . ' protocolos';
-        $dedupe = 'protocol-group-' . sha1($recipient . ':' . implode(',', $ids));
-        $existing = Db::fetch('SELECT status, sent_via, sent_at FROM notifications WHERE dedupe_key = ? ORDER BY id DESC LIMIT 1', [$dedupe]);
-        if ($existing !== null) {
+        $groupKey = sha1($recipient . ':' . implode(',', $ids));
+        $dedupePrefix = 'protocol-group-' . $groupKey;
+        $existing = Db::fetch(
+            'SELECT status, sent_via, sent_at, dedupe_key FROM notifications WHERE dedupe_key = ? OR dedupe_key LIKE ? ORDER BY id DESC LIMIT 1',
+            [$dedupePrefix, $dedupePrefix . '-retry-%']
+        );
+        if ($existing !== null && $existing['status'] !== 'falhou') {
             $status = ($existing['status'] === 'enviado' && $existing['sent_via'] === 'brevo_smtp')
                 ? ['key' => 'sent', 'label' => 'Enviado', 'sent_at' => $existing['sent_at']]
-                : ($existing['status'] === 'falhou'
-                    ? ['key' => 'failed', 'label' => 'Falha no envio', 'sent_at' => $existing['sent_at']]
-                    : ['key' => 'queued', 'label' => 'Na fila de envio', 'sent_at' => $existing['sent_at']]);
+                : ['key' => 'queued', 'label' => 'Na fila de envio', 'sent_at' => $existing['sent_at']];
             return ['count' => count($rows), 'email' => $recipient, 'email_status' => $status];
         }
+        $dedupe = $existing !== null
+            ? $dedupePrefix . '-retry-' . date('YmdHis') . '-' . bin2hex(random_bytes(3))
+            : $dedupePrefix;
         if (!class_exists('ZipArchive')) {
             throw new \RuntimeException('A extensão ZIP é necessária para preparar os comprovantes agrupados.');
         }
@@ -433,9 +438,17 @@ final class DeliveryService
             throw new \RuntimeException('Não foi possível finalizar o arquivo dos comprovantes.');
         }
         $html = Mailer::layout($subject, '<p>Olá,</p><p>Segue um único e-mail com os comprovantes selecionados. Os PDFs estão reunidos no arquivo ZIP anexado.</p>' . implode('', $sections));
-        NotificationService::queueEmail(Auth::id(), (string) $recipient, $subject, $html, $archiveRelative, $dedupe, 'delivery_group', null);
-        NotificationService::flush();
-        $notification = Db::fetch('SELECT status, sent_via, sent_at FROM notifications WHERE dedupe_key = ? ORDER BY id DESC LIMIT 1', [$dedupe]);
+        try {
+            NotificationService::queueEmail(Auth::id(), (string) $recipient, $subject, $html, $archiveRelative, $dedupe, 'delivery_group', null);
+            NotificationService::flush();
+        } catch (Throwable $e) {
+            @unlink($archive);
+            throw $e;
+        }
+        $notification = Db::fetch('SELECT status, sent_via, sent_at, attachment_path FROM notifications WHERE dedupe_key = ? ORDER BY id DESC LIMIT 1', [$dedupe]);
+        if ($notification === null || (string) ($notification['attachment_path'] ?? '') !== $archiveRelative) {
+            @unlink($archive);
+        }
         $status = ($notification && $notification['status'] === 'enviado' && $notification['sent_via'] === 'brevo_smtp')
             ? ['key' => 'sent', 'label' => 'Enviado', 'sent_at' => $notification['sent_at']]
             : (($notification['status'] ?? '') === 'falhou'

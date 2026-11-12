@@ -67,7 +67,9 @@ expectContains('app/Services/DeliveryService.php', 'precisam ter o mesmo e-mail'
 expectContains('app/Services/DeliveryService.php', 'mesma indústria', 'Reenvio agrupado não mistura indústrias');
 expectContains('app/Services/DeliveryService.php', 'ZipArchive', 'Reenvio agrupado anexa os PDFs em um ZIP');
 expectContains('app/Services/DeliveryService.php', 'sort($ids, SORT_NUMERIC)', 'Reenvio agrupado deduplica independentemente da ordem');
-expectContains('app/Services/DeliveryService.php', 'SELECT status, sent_via, sent_at FROM notifications', 'Reenvio agrupado confirma o status persistido');
+expectContains('app/Services/DeliveryService.php', 'attachment_path FROM notifications', 'Reenvio agrupado confirma o status e anexo persistidos');
+expectContains('app/Services/DeliveryService.php', "'-retry-'", 'Reenvio agrupado permite nova tentativa após falha');
+expectContains('app/Services/DeliveryService.php', '@unlink($archive)', 'Reenvio agrupado limpa ZIP órfão');
 expectContains('app/Services/DeliveryService.php', 'WHERE dedupe_key = ?', 'Reenvio agrupado evita ZIP duplicado');
 expectContains('app/Services/DeliveryService.php', "'label' => 'Enviado'", 'API identifica envio confirmado como Enviado');
 expectContains('app/Controllers/DeliveriesController.php', "'resent' =>", 'Reenvio só confirma quando o status é enviado');
