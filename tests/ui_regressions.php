@@ -58,6 +58,8 @@ expectNotContains('resources/views/pages/settings/index.php', 'testMail()', 'Con
 expectNotContains('resources/views/pages/settings/index.php', "'/api/settings/test-email'", 'Configurações não chamam a rota removida de teste de e-mail');
 expectNotContains('app/routes.php', '/api/settings/test-email', 'Rota administrativa de teste de e-mail foi removida');
 expectNotContains('app/Controllers/SettingsController.php', 'function testEmail', 'Controller não mantém ação administrativa de teste de e-mail');
+expectNotContains('app/pages.php', "'path' => '/email'", 'Página administrativa Email foi removida');
+expectNotContains('app/Support/Menu.php', "'label' => 'Email'", 'Item Email foi removido do menu');
 expectContains('app/Services/DataExportService.php', "'Exportação completa de dados'", 'Excel possui aba de resumo didática');
 expectContains('app/Services/DataExportService.php', 'Campos de autenticação e tokens foram omitidos', 'Excel informa os campos omitidos por segurança');
 expectContains('app/Services/DataExportService.php', 'COLUMN_LABELS', 'Excel usa cabeçalhos traduzidos para português');
