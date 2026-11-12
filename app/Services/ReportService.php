@@ -199,6 +199,17 @@ final class ReportService
         return ['font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']], 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $blue]], 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true]];
     }
 
+    private static function columnLetter(int $column): string
+    {
+        $letter = '';
+        while ($column > 0) {
+            $remainder = ($column - 1) % 26;
+            $letter = chr(65 + $remainder) . $letter;
+            $column = intdiv($column - 1, 26);
+        }
+        return $letter;
+    }
+
     private static function industryAgg(string $expr = 'ind.name'): string
     {
         return Db::isSqlite() ? "GROUP_CONCAT({$expr})" : "GROUP_CONCAT(DISTINCT {$expr})";
