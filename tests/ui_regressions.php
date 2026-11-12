@@ -60,7 +60,7 @@ expectContains('resources/views/pages/deliveries/index.php', "'Não enviado'", '
 expectContains('resources/views/pages/deliveries/show.php', 'Enviar email automático', 'Detalhe usa o nome correto para reenvio automático');
 expectContains('resources/views/pages/deliveries/show.php', 'email_status', 'Detalhe do protocolo exibe status do e-mail');
 expectContains('app/Services/DeliveryService.php', "'label' => 'Enviado'", 'API identifica envio confirmado como Enviado');
-expectContains('app/Services/DeliveryService.php', 'latest[(string) $row[\'to_email\']] = $row', 'Status usa a tentativa mais recente por destinatário');
+expectContains('app/Controllers/DeliveriesController.php', "'resent' =>", 'Reenvio só confirma quando o status é enviado');
 expectContains('app/Services/NotificationService.php', '$attemptKey', 'Reenvio gera uma nova chave de tentativa');
 expectNotContains('app/Services/DeliveryService.php', 'Aceito por outro transporte', 'API não exibe aceite por transporte alternativo');
 expectContains('app/Services/DeliveryService.php', 'brevo_smtp', 'API identifica o transporte Brevo do comprovante');

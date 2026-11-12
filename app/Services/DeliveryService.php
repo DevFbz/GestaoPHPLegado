@@ -195,7 +195,7 @@ final class DeliveryService
         }
         $latest = [];
         foreach ($rows as $row) {
-            $latest[(string) $row['to_email']] = $row;
+            $latest[strtolower((string) $row['to_email'])] = $row;
         }
         $allBrevo = $latest !== [];
         $hasQueued = false;
@@ -323,6 +323,9 @@ final class DeliveryService
         $email = $d['received_by_email'];
         if (!$email && $d['industry']) {
             $email = Db::value('SELECT contact_email FROM industries WHERE id = ?', [$d['industry']['id']]);
+        }
+        if (!$email) {
+            return ['key' => 'not_sent', 'label' => 'Não enviado', 'sent_at' => null];
         }
         $attemptKey = 'retry-' . date('YmdHis') . '-' . bin2hex(random_bytes(3));
         NotificationService::protocolEmail(

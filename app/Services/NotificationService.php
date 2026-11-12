@@ -115,7 +115,7 @@ final class NotificationService
     {
         $tos = [];
         foreach ([$delivery['received_by_email'] ?? null, $industryEmail] as $candidate) {
-            $email = is_string($candidate) ? trim($candidate) : '';
+            $email = is_string($candidate) ? strtolower(trim($candidate)) : '';
             if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) && !in_array($email, $tos, true)) {
                 $tos[] = $email;
             }
