@@ -64,6 +64,9 @@ expectContains('resources/views/pages/deliveries/index.php', 'Enviar manualmente
 expectContains('resources/views/pages/deliveries/index.php', 'Enviar automático', 'Comprovantes mantém envio automático separado');
 expectContains('resources/views/pages/deliveries/index.php', 'manualSingleHref(d)', 'Comprovantes prepara e-mail manual individual');
 expectContains('resources/views/pages/deliveries/index.php', 'manualGroupHref(group)', 'Comprovantes prepara e-mail manual agrupado');
+expectContains('resources/views/pages/deliveries/index.php', 'zipHref(', 'Comprovantes oferece download ZIP individual e agrupado');
+expectContains('resources/views/pages/deliveries/index.php', 'itemLines(row)', 'Comprovantes inclui os brindes retirados no e-mail manual');
+expectContains('resources/views/pages/deliveries/index.php', 'x-if="group.email && group.rows.length > 1"', 'Ação manual agrupada aparece somente para grupos');
 expectContains('resources/views/pages/deliveries/index.php', 'mailto:', 'Comprovantes usa Outlook via mailto');
 expectContains('resources/views/pages/deliveries/index.php', 'loadError', 'Comprovantes exibe erro de carregamento');
 expectContains('resources/views/pages/deliveries/index.php', 'group.rows.forEach', 'Comprovantes atualiza o status visual de todos os protocolos agrupados');
@@ -81,10 +84,6 @@ expectContains('app/Services/DeliveryService.php', 'Itens retirados', 'E-mail ag
 expectContains('app/Services/DeliveryService.php', 'precisam ter o mesmo e-mail', 'Reenvio agrupado valida o destinatário único');
 expectContains('resources/views/pages/deliveries/index.php', 'const key = email ? email', 'Comprovantes agrupa somente pelo e-mail');
 expectContains('app/Services/DeliveryService.php', 'ZipArchive', 'Reenvio agrupado anexa os PDFs em um ZIP');
-expectContains('app/routes.php', '/api/deliveries/manual-eml', 'Homologação possui rota para gerar rascunho .eml manual');
-expectContains('app/Services/DeliveryService.php', 'Content-Type: multipart/mixed', 'Rascunho manual .eml usa MIME multipart');
-expectContains('app/Services/DeliveryService.php', 'Content-Disposition: attachment; filename=\\"comprovantes.zip\\"', 'Rascunho manual .eml incorpora o ZIP');
-expectContains('resources/views/pages/deliveries/index.php', 'manualEmlEnabled', 'Homologação usa o rascunho .eml no botão manual');
 expectContains('app/Services/DeliveryService.php', 'sort($ids, SORT_NUMERIC)', 'Reenvio agrupado deduplica independentemente da ordem');
 expectContains('app/Services/DeliveryService.php', 'attachment_path FROM notifications', 'Reenvio agrupado confirma o status e anexo persistidos');
 expectContains('app/Services/DeliveryService.php', "'-retry-'", 'Reenvio agrupado permite nova tentativa após falha');

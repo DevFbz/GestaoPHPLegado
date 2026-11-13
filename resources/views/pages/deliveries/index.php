@@ -1,6 +1,5 @@
 <?php
 $automaticMailEnabled = strtolower((string) \App\Core\Config::get('mail.driver', 'log')) === 'smtp';
-$manualEmlEnabled = $automaticMailEnabled;
 ob_start(); ?>
 <div x-data="protIndex()" x-init="load()">
   <header class="page-header">
@@ -29,14 +28,17 @@ ob_start(); ?>
           <div class="small text-muted" x-show="group.industryNames" x-text="'Indústrias: ' + group.industryNames"></div>
           <div class="small text-muted" x-text="group.rows.length + (group.rows.length === 1 ? ' protocolo' : ' protocolos')"></div>
         </div>
-        <div class="d-flex flex-wrap gap-2" x-show="group.email && group.rows.length > 1">
-          <a class="btn btn-outline-primary btn-sm" :href="manualGroupHref(group)" target="_blank" rel="noopener" @click="manualOpen(group, $event)">Enviar manualmente</a>
-          <?php if ($automaticMailEnabled): ?>
-          <button class="btn btn-primary btn-sm" type="button" @click="sendGroup(group)" :disabled="sendingKey === group.key || group.rows.some(function (row) { return sendingKey === 'protocol-' + row.id; })">
-            <span x-text="sendingKey === group.key ? 'Enviando…' : 'Enviar automático'"></span>
-          </button>
-          <?php endif; ?>
-        </div>
+        <template x-if="group.email && group.rows.length > 1">
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-primary btn-sm" :href="manualGroupHref(group)" target="_blank" rel="noopener" @click="manualOpen(group, $event)">Enviar manualmente</a>
+            <a class="btn btn-outline-secondary btn-sm" :href="zipHref(group.rows.map(function (row) { return row.id; }))" data-no-loading>Baixar ZIP</a>
+            <?php if ($automaticMailEnabled): ?>
+            <button class="btn btn-primary btn-sm" type="button" @click="sendGroup(group)" :disabled="sendingKey === group.key || group.rows.some(function (row) { return sendingKey === 'protocol-' + row.id; })">
+              <span x-text="sendingKey === group.key ? 'Enviando…' : 'Enviar automático'"></span>
+            </button>
+            <?php endif; ?>
+          </div>
+        </template>
       </div>
       <div class="list-group list-group-flush">
         <template x-for="d in group.rows" :key="d.id">
@@ -56,7 +58,10 @@ ob_start(); ?>
                 }" x-text="d.email_status?.label || 'Não enviado'"></span>
                 <span class="small text-muted" x-text="Api.fmt.datetime(d.created_at)"></span>
                 <template x-if="group.rows.length === 1">
-                  <a class="btn btn-outline-primary btn-sm" :href="manualSingleHref(d)" target="_blank" rel="noopener" @click="manualOpen(d, $event)">Enviar manualmente</a>
+                  <div class="d-flex align-items-center gap-2">
+                    <a class="btn btn-outline-primary btn-sm" :href="manualSingleHref(d)" target="_blank" rel="noopener" @click="manualOpen(d, $event)">Enviar manualmente</a>
+                    <a class="btn btn-outline-secondary btn-sm" :href="zipHref([d.id])" data-no-loading>Baixar ZIP</a>
+                  </div>
                 </template>
                 <?php if ($automaticMailEnabled): ?>
                 <button class="btn btn-primary btn-sm" type="button" x-show="group.rows.length === 1" @click="sendSingle(d)" :disabled="sendingKey === ('protocol-' + d.id) || sendingKey === group.key">
@@ -117,43 +122,52 @@ function protIndex() {
         + '?subject=' + encodeURIComponent(subject)
         + '&body=' + encodeURIComponent(body);
     },
+    zipHref(ids) {
+      return '<?= e(url('/api/deliveries/zip')) ?>?ids=' + encodeURIComponent(ids.join(','));
+    },
+    itemLines(row) {
+      return (row.items || []).map(function (item) {
+        const name = item.item?.name || item.name || 'Brinde';
+        const quantity = Number(item.qty || item.quantity || 0);
+        return name + ': ' + quantity;
+      });
+    },
     manualSingleHref(row) {
-      <?php if ($manualEmlEnabled): ?>
-      return '<?= e(url('/api/deliveries/manual-eml')) ?>?ids=' + encodeURIComponent(String(row.id));
-      <?php else: ?>
       const industry = row.industry?.name || 'Não informada';
+      const items = this.itemLines(row);
       const subject = 'Comprovante de retirada — ' + (row.code || 'protocolo');
       const body = [
         'Olá,',
         '',
         'Segue o comprovante de retirada do protocolo ' + (row.code || 'não informado') + '.',
+        '',
         'Indústria: ' + industry,
         'Tipo: ' + (row.type_label || 'Não informado'),
         'Recebido por: ' + (row.received_by_name || 'Não informado'),
+        'Brinde(s) retirado(s):',
+        ...(items.length ? items.map(function (item) { return '- ' + item; }) : ['- Não informado']),
         '',
         'O PDF do comprovante pode ser anexado antes do envio.',
       ].join('\n');
       return this.manualMailto(row.received_by_email, subject, body);
-      <?php endif; ?>
     },
     manualGroupHref(group) {
-      <?php if ($manualEmlEnabled): ?>
-      return '<?= e(url('/api/deliveries/manual-eml')) ?>?ids=' + encodeURIComponent(group.rows.map(function (row) { return row.id; }).join(','));
-      <?php else: ?>
       const subject = 'Comprovantes de retirada — ' + group.rows.length + ' protocolos';
       const lines = ['Olá,', '', 'Segue a relação de comprovantes de retirada:', ''];
-      group.rows.forEach(function (row) {
+      group.rows.forEach((row) => {
+        const items = this.itemLines(row);
         lines.push(
           'Protocolo: ' + (row.code || 'não informado'),
           'Indústria: ' + (row.industry?.name || 'Não informada'),
           'Tipo: ' + (row.type_label || 'Não informado'),
           'Recebido por: ' + (row.received_by_name || 'Não informado'),
+          'Brinde(s) retirado(s):',
+          ...(items.length ? items.map(function (item) { return '- ' + item; }) : ['- Não informado']),
           ''
         );
       });
       lines.push('Os PDFs dos comprovantes podem ser anexados antes do envio.');
       return this.manualMailto(group.email, subject, lines.join('\n'));
-      <?php endif; ?>
     },
     manualOpen(target, event) {
       const email = String(target.email || target.received_by_email || '').trim();
