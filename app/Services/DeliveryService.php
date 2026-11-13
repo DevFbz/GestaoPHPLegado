@@ -67,6 +67,7 @@ final class DeliveryService
         if ($row === null) {
             throw HttpException::notFound('Protocolo não encontrado.');
         }
+        self::assertIndustryAccess($row);
         $out = self::present($row);
         $out['items'] = self::items($id);
         return $out;
@@ -181,7 +182,14 @@ final class DeliveryService
         ];
     }
 
-    /** Returns the latest delivery-mail attempt per recipient; Brevo confirmation is required for Enviado. */
+    private static function assertIndustryAccess(array $row): void
+    {
+        $industryId = Auth::industryId();
+        if ($industryId !== null && (int) ($row['industry_id'] ?? 0) !== $industryId) {
+            throw HttpException::forbidden('Você não pode acessar protocolos de outra indústria.');
+        }
+    }
+
     public static function emailStatus(int $deliveryId): array
     {
         $rows = Db::fetchAll(
@@ -190,9 +198,22 @@ final class DeliveryService
               ORDER BY id ASC",
             [$deliveryId]
         );
+        $groupRows = Db::fetchAll(
+            "SELECT to_email, status, sent_via, sent_at, id, body FROM notifications
+              WHERE channel = 'email' AND related_type = 'delivery_group'
+              ORDER BY id ASC"
+        );
+        foreach ($groupRows as $groupRow) {
+            preg_match('/<!--\\s*delivery-group-ids:([0-9,]+)\\s*-->/', (string) ($groupRow['body'] ?? ''), $match);
+            $groupIds = isset($match[1]) ? array_map('intval', explode(',', $match[1])) : [];
+            if (in_array($deliveryId, $groupIds, true)) {
+                $rows[] = $groupRow;
+            }
+        }
         if ($rows === []) {
             return ['key' => 'not_sent', 'label' => 'Não enviado', 'sent_at' => null];
         }
+        usort($rows, static fn (array $a, array $b): int => ((int) ($a['id'] ?? 0)) <=> ((int) ($b['id'] ?? 0)));
         $latest = [];
         foreach ($rows as $row) {
             $latest[strtolower((string) $row['to_email'])] = $row;
@@ -282,10 +303,11 @@ final class DeliveryService
 
     public static function pdfPath(int $id): string
     {
-        $row = Db::fetch('SELECT id FROM deliveries WHERE id = ?', [$id]);
+        $row = Db::fetch('SELECT id, industry_id FROM deliveries WHERE id = ?', [$id]);
         if ($row === null) {
             throw HttpException::notFound('Protocolo não encontrado.');
         }
+        self::assertIndustryAccess($row);
         $relative = PdfService::generate($id);
         $abs = ImageService::absolute($relative);
         if (!is_file($abs)) {
@@ -296,10 +318,11 @@ final class DeliveryService
 
     public static function signaturePath(int $id): string
     {
-        $row = Db::fetch('SELECT signature_path, signature_png FROM deliveries WHERE id = ?', [$id]);
+        $row = Db::fetch('SELECT industry_id, signature_path, signature_png FROM deliveries WHERE id = ?', [$id]);
         if ($row === null) {
             throw HttpException::notFound('Protocolo não encontrado.');
         }
+        self::assertIndustryAccess($row);
         $rel = (string) ($row['signature_path'] ?? '');
         $abs = $rel !== '' ? ImageService::absolute($rel) : '';
         if ($abs !== '' && is_file($abs)) {
@@ -322,6 +345,10 @@ final class DeliveryService
         $row = Db::fetch(self::SELECT . ' ' . self::FROM . ' WHERE d.id = ?', [$id]);
         if ($row === null) {
             throw HttpException::notFound('Protocolo não encontrado.');
+        }
+        $industryId = Auth::industryId();
+        if ($industryId !== null && (int) ($row['industry_id'] ?? 0) !== $industryId) {
+            throw HttpException::forbidden('Você não pode enviar protocolos de outra indústria.');
         }
         $recipientEmail = is_string($row['received_by_email'] ?? null) ? strtolower(trim((string) $row['received_by_email'])) : '';
         $recipientEmail = filter_var($recipientEmail, FILTER_VALIDATE_EMAIL) ?: null;
@@ -391,7 +418,7 @@ final class DeliveryService
         $groupKey = sha1($recipient . ':' . implode(',', $ids));
         $dedupePrefix = 'protocol-group-' . $groupKey;
         $existing = Db::fetch(
-            'SELECT status, sent_via, sent_at, dedupe_key FROM notifications WHERE dedupe_key = ? OR dedupe_key LIKE ? ORDER BY id DESC LIMIT 1',
+            'SELECT id, status, sent_via, sent_at, dedupe_key FROM notifications WHERE dedupe_key = ? OR dedupe_key LIKE ? ORDER BY id DESC LIMIT 1',
             [$dedupePrefix, $dedupePrefix . '-retry-%']
         );
         if ($existing !== null && $existing['status'] !== 'falhou') {
@@ -401,7 +428,7 @@ final class DeliveryService
             return ['count' => count($rows), 'email' => $recipient, 'email_status' => $status];
         }
         $dedupe = $existing !== null
-            ? $dedupePrefix . '-retry-' . date('YmdHis') . '-' . bin2hex(random_bytes(3))
+            ? $dedupePrefix . '-retry-' . (int) $existing['id']
             : $dedupePrefix;
         if (!class_exists('ZipArchive')) {
             throw new \RuntimeException('A extensão ZIP é necessária para preparar os comprovantes agrupados.');
@@ -424,20 +451,30 @@ final class DeliveryService
                 @unlink($archive);
                 throw new \RuntimeException('Não foi possível incluir todos os PDFs dos protocolos.');
             }
-            $items = '';
+            $items = [];
             foreach ($d['items'] as $item) {
-                $items .= '<li>' . e((string) ($item['item']['name'] ?? 'Brinde')) . ': ' . (int) ($item['qty'] ?? 0) . '</li>';
+                $items[] = e((string) ($item['item']['name'] ?? 'Brinde')) . ': ' . (int) ($item['qty'] ?? 0);
             }
-            $sections[] = '<h3 style="margin:18px 0 6px">Protocolo ' . e((string) $d['code']) . '</h3>'
-                . '<p style="margin:0 0 6px">' . e((string) ($d['type_label'] ?? '')) . ' · ' . e((string) ($d['received_by_name'] ?? '')) . '</p>'
-                . '<ul style="margin-top:6px">' . $items . '</ul>'
-                . '<p>O PDF deste protocolo está no arquivo ZIP anexado.</p>';
+            $sections[] = '<tr>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;font-weight:700;vertical-align:top">' . e((string) $d['code']) . '</td>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['type_label'] ?? '')) . '</td>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['received_by_name'] ?? '')) . '</td>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . implode('<br>', $items) . '</td>'
+                . '</tr>';
         }
         if (!$zip->close() || !is_file($archive)) {
             @unlink($archive);
             throw new \RuntimeException('Não foi possível finalizar o arquivo dos comprovantes.');
         }
-        $html = Mailer::layout($subject, '<p>Olá,</p><p>Segue um único e-mail com os comprovantes selecionados. Os PDFs estão reunidos no arquivo ZIP anexado.</p>' . implode('', $sections));
+        $table = '<table role="table" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:13px;margin-top:16px">'
+            . '<thead><tr style="background:#eff4fb">'
+            . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Protocolo</th>'
+            . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Tipo</th>'
+            . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Recebido por</th>'
+            . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Itens retirados</th>'
+            . '</tr></thead><tbody>' . implode('', $sections) . '</tbody></table>';
+        $groupMarker = '<!-- delivery-group-ids:' . implode(',', $ids) . ' -->';
+        $html = Mailer::layout($subject, $groupMarker . '<p>Olá,</p><p>Segue um único e-mail com os comprovantes selecionados. Os PDFs estão reunidos no arquivo ZIP anexado.</p>' . $table . '<p style="margin-top:16px;color:#4b5563;font-size:12px">Há um PDF correspondente a cada protocolo dentro do arquivo ZIP.</p>');
         try {
             NotificationService::queueEmail(Auth::id(), (string) $recipient, $subject, $html, $archiveRelative, $dedupe, 'delivery_group', null);
             NotificationService::flush();
