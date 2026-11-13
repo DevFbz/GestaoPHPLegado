@@ -72,6 +72,7 @@ expectContains('app/Services/DeliveryService.php', 'usort($rows', 'Status combin
 expectContains('app/Services/DeliveryService.php', "related_type = 'delivery_group'", 'Status do protocolo consulta envio agrupado persistido');
 expectContains('app/Services/DeliveryService.php', 'role="table"', 'E-mail agrupado usa tabela HTML');
 expectContains('app/Services/DeliveryService.php', 'Indústria', 'E-mail agrupado identifica a indústria de cada protocolo');
+expectContains('app/Services/DeliveryService.php', 'white-space:nowrap', 'E-mail agrupado mantém o protocolo em uma linha');
 expectContains('app/Services/DeliveryService.php', 'Quantidade', 'E-mail agrupado apresenta a quantidade retirada');
 expectContains('app/Services/DeliveryService.php', 'Itens retirados', 'E-mail agrupado apresenta os itens em tabela');
 expectContains('app/Services/DeliveryService.php', 'precisam ter o mesmo e-mail', 'Reenvio agrupado valida o destinatário único');

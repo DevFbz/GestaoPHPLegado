@@ -452,7 +452,7 @@ final class DeliveryService
                 $items[] = e((string) ($item['item']['name'] ?? 'Brinde')) . ': ' . $itemQty;
             }
             $sections[] = '<tr>'
-                . '<td style="padding:10px;border:1px solid #dbe3ef;font-weight:700;vertical-align:top">' . e((string) $d['code']) . '</td>'
+                . '<td style="width:120px;min-width:120px;padding:10px;border:1px solid #dbe3ef;font-weight:700;vertical-align:top;white-space:nowrap">' . e((string) $d['code']) . '</td>'
                 . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['industry']['name'] ?? '')) . '</td>'
                 . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['type_label'] ?? '')) . '</td>'
                 . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['received_by_name'] ?? '')) . '</td>'
