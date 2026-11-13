@@ -23,7 +23,7 @@
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 border-bottom pb-2 mb-2">
         <div>
           <div class="fw-semibold" x-text="group.email || 'Sem e-mail informado'"></div>
-          <div class="small text-muted" x-show="group.industryName" x-text="'Indústria: ' + group.industryName"></div>
+          <div class="small text-muted" x-show="group.industryNames" x-text="'Indústrias: ' + group.industryNames"></div>
           <div class="small text-muted" x-text="group.rows.length + (group.rows.length === 1 ? ' protocolo' : ' protocolos')"></div>
         </div>
         <button class="btn btn-primary btn-sm" type="button" x-show="group.email && group.rows.length > 1" @click="sendGroup(group)" :disabled="sendingKey === group.key || group.rows.some(function (row) { return sendingKey === 'protocol-' + row.id; })">
@@ -71,10 +71,13 @@ function protIndex() {
       const groups = {};
       this.rows.forEach(function (row) {
         const email = String(row.received_by_email || '').trim().toLowerCase();
-        const industryId = row.industry && row.industry.id ? String(row.industry.id) : 'sem-industria';
-        const key = email ? (industryId + ':' + email) : ('protocol-' + row.id);
-        if (!groups[key]) groups[key] = { key: key, email: email, industryName: row.industry?.name || '', rows: [] };
+        const key = email ? email : ('protocol-' + row.id);
+        if (!groups[key]) groups[key] = { key: key, email: email, industryNames: '', rows: [] };
         groups[key].rows.push(row);
+        const industryName = row.industry?.name || '';
+        if (industryName && !groups[key].industryNames.split(' · ').includes(industryName)) {
+          groups[key].industryNames = groups[key].industryNames ? groups[key].industryNames + ' · ' + industryName : industryName;
+        }
       });
       return Object.values(groups);
     },

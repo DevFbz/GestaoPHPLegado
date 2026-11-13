@@ -71,9 +71,11 @@ expectContains('app/Services/DeliveryService.php', 'delivery-group-ids:', 'Envio
 expectContains('app/Services/DeliveryService.php', 'usort($rows', 'Status combina notificações individuais e agrupadas por ordem persistida');
 expectContains('app/Services/DeliveryService.php', "related_type = 'delivery_group'", 'Status do protocolo consulta envio agrupado persistido');
 expectContains('app/Services/DeliveryService.php', 'role="table"', 'E-mail agrupado usa tabela HTML');
+expectContains('app/Services/DeliveryService.php', 'Indústria', 'E-mail agrupado identifica a indústria de cada protocolo');
+expectContains('app/Services/DeliveryService.php', 'Quantidade', 'E-mail agrupado apresenta a quantidade retirada');
 expectContains('app/Services/DeliveryService.php', 'Itens retirados', 'E-mail agrupado apresenta os itens em tabela');
 expectContains('app/Services/DeliveryService.php', 'precisam ter o mesmo e-mail', 'Reenvio agrupado valida o destinatário único');
-expectContains('app/Services/DeliveryService.php', 'mesma indústria', 'Reenvio agrupado não mistura indústrias');
+expectContains('resources/views/pages/deliveries/index.php', 'const key = email ? email', 'Comprovantes agrupa somente pelo e-mail');
 expectContains('app/Services/DeliveryService.php', 'ZipArchive', 'Reenvio agrupado anexa os PDFs em um ZIP');
 expectContains('app/Services/DeliveryService.php', 'sort($ids, SORT_NUMERIC)', 'Reenvio agrupado deduplica independentemente da ordem');
 expectContains('app/Services/DeliveryService.php', 'attachment_path FROM notifications', 'Reenvio agrupado confirma o status e anexo persistidos');

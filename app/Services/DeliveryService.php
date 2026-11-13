@@ -384,7 +384,6 @@ final class DeliveryService
         sort($ids, SORT_NUMERIC);
         $rows = [];
         $recipient = null;
-        $groupIndustryId = null;
         foreach ($ids as $id) {
             $row = Db::fetch(self::SELECT . ' ' . self::FROM . ' WHERE d.id = ?', [$id]);
             if ($row === null) {
@@ -393,12 +392,6 @@ final class DeliveryService
             $industryId = Auth::industryId();
             if ($industryId !== null && (int) ($row['industry_id'] ?? 0) !== $industryId) {
                 throw HttpException::forbidden('Você não pode enviar protocolos de outra indústria.');
-            }
-            $rowIndustryId = (int) ($row['industry_id'] ?? 0);
-            if ($groupIndustryId === null) {
-                $groupIndustryId = $rowIndustryId;
-            } elseif ($groupIndustryId !== $rowIndustryId) {
-                throw HttpException::badRequest('INVALID_PROTOCOL_GROUP', 'Os protocolos precisam pertencer à mesma indústria.');
             }
             $email = is_string($row['received_by_email'] ?? null) ? strtolower(trim((string) $row['received_by_email'])) : '';
             $email = filter_var($email, FILTER_VALIDATE_EMAIL) ?: null;
@@ -452,13 +445,18 @@ final class DeliveryService
                 throw new \RuntimeException('Não foi possível incluir todos os PDFs dos protocolos.');
             }
             $items = [];
+            $quantity = 0;
             foreach ($d['items'] as $item) {
-                $items[] = e((string) ($item['item']['name'] ?? 'Brinde')) . ': ' . (int) ($item['qty'] ?? 0);
+                $itemQty = (int) ($item['qty'] ?? 0);
+                $quantity += $itemQty;
+                $items[] = e((string) ($item['item']['name'] ?? 'Brinde')) . ': ' . $itemQty;
             }
             $sections[] = '<tr>'
                 . '<td style="padding:10px;border:1px solid #dbe3ef;font-weight:700;vertical-align:top">' . e((string) $d['code']) . '</td>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['industry']['name'] ?? '')) . '</td>'
                 . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['type_label'] ?? '')) . '</td>'
                 . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['received_by_name'] ?? '')) . '</td>'
+                . '<td align="right" style="padding:10px;border:1px solid #dbe3ef;vertical-align:top;font-weight:700">' . $quantity . '</td>'
                 . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . implode('<br>', $items) . '</td>'
                 . '</tr>';
         }
@@ -469,8 +467,10 @@ final class DeliveryService
         $table = '<table role="table" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:13px;margin-top:16px">'
             . '<thead><tr style="background:#eff4fb">'
             . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Protocolo</th>'
+            . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Indústria</th>'
             . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Tipo</th>'
             . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Recebido por</th>'
+            . '<th align="right" style="padding:10px;border:1px solid #dbe3ef">Quantidade</th>'
             . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Itens retirados</th>'
             . '</tr></thead><tbody>' . implode('', $sections) . '</tbody></table>';
         $groupMarker = '<!-- delivery-group-ids:' . implode(',', $ids) . ' -->';
