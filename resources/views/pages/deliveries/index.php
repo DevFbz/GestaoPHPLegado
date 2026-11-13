@@ -47,7 +47,7 @@
                   'text-bg-secondary': !['sent', 'queued', 'failed'].includes(d.email_status?.key)
                 }" x-text="d.email_status?.label || 'Não enviado'"></span>
                 <span class="small text-muted" x-text="Api.fmt.datetime(d.created_at)"></span>
-                <button class="btn btn-outline-primary btn-sm" type="button" @click="sendSingle(d)" :disabled="sendingKey === ('protocol-' + d.id) || sendingKey === group.key">
+                <button class="btn btn-outline-primary btn-sm" type="button" x-show="group.rows.length === 1" @click="sendSingle(d)" :disabled="sendingKey === ('protocol-' + d.id) || sendingKey === group.key">
                   <span x-text="sendingKey === ('protocol-' + d.id) ? 'Enviando…' : 'Enviar e-mail (manualmente)'"></span>
                 </button>
               </div>
