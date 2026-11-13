@@ -1,5 +1,6 @@
 <?php
 $automaticMailEnabled = strtolower((string) \App\Core\Config::get('mail.driver', 'log')) === 'smtp';
+$manualEmlEnabled = $automaticMailEnabled;
 ob_start(); ?>
 <div x-data="protIndex()" x-init="load()">
   <header class="page-header">
@@ -117,6 +118,9 @@ function protIndex() {
         + '&body=' + encodeURIComponent(body);
     },
     manualSingleHref(row) {
+      <?php if ($manualEmlEnabled): ?>
+      return '<?= e(url('/api/deliveries/manual-eml')) ?>?ids=' + encodeURIComponent(String(row.id));
+      <?php else: ?>
       const industry = row.industry?.name || 'Não informada';
       const subject = 'Comprovante de retirada — ' + (row.code || 'protocolo');
       const body = [
@@ -130,8 +134,12 @@ function protIndex() {
         'O PDF do comprovante pode ser anexado antes do envio.',
       ].join('\n');
       return this.manualMailto(row.received_by_email, subject, body);
+      <?php endif; ?>
     },
     manualGroupHref(group) {
+      <?php if ($manualEmlEnabled): ?>
+      return '<?= e(url('/api/deliveries/manual-eml')) ?>?ids=' + encodeURIComponent(group.rows.map(function (row) { return row.id; }).join(','));
+      <?php else: ?>
       const subject = 'Comprovantes de retirada — ' + group.rows.length + ' protocolos';
       const lines = ['Olá,', '', 'Segue a relação de comprovantes de retirada:', ''];
       group.rows.forEach(function (row) {
@@ -145,6 +153,7 @@ function protIndex() {
       });
       lines.push('Os PDFs dos comprovantes podem ser anexados antes do envio.');
       return this.manualMailto(group.email, subject, lines.join('\n'));
+      <?php endif; ?>
     },
     manualOpen(target, event) {
       const email = String(target.email || target.received_by_email || '').trim();

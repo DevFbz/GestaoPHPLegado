@@ -340,6 +340,108 @@ final class DeliveryService
         return ImageService::writeBytes($rel, $bin);
     }
 
+    /** Builds a local Outlook draft as .eml without queueing or sending mail. */
+    public static function manualEml(array $ids): \App\Core\Response
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === [] || count($ids) > 100) {
+            throw HttpException::badRequest('INVALID_PROTOCOL_GROUP', 'Selecione pelo menos um protocolo válido.');
+        }
+        $rows = [];
+        $recipient = null;
+        foreach ($ids as $id) {
+            $row = Db::fetch(self::SELECT . ' ' . self::FROM . ' WHERE d.id = ?', [$id]);
+            if ($row === null) {
+                throw HttpException::notFound('Um dos protocolos selecionados não foi encontrado.');
+            }
+            $industryId = Auth::industryId();
+            if ($industryId !== null && (int) ($row['industry_id'] ?? 0) !== $industryId) {
+                throw HttpException::forbidden('Você não pode enviar protocolos de outra indústria.');
+            }
+            $email = filter_var(strtolower(trim((string) ($row['received_by_email'] ?? ''))), FILTER_VALIDATE_EMAIL);
+            if ($email === false) {
+                throw HttpException::badRequest('INVALID_RECIPIENT', 'Todos os protocolos precisam ter um e-mail válido.');
+            }
+            if ($recipient === null) {
+                $recipient = $email;
+            } elseif ($recipient !== $email) {
+                throw HttpException::badRequest('INVALID_PROTOCOL_GROUP', 'Os protocolos selecionados precisam ter o mesmo e-mail.');
+            }
+            $d = self::present($row);
+            $d['items'] = self::items($id);
+            $rows[] = $d + ['pdf_path' => $row['pdf_path'] ?? null];
+        }
+        $subject = count($rows) === 1
+            ? 'Comprovante de retirada — ' . (string) $rows[0]['code']
+            : 'Comprovantes de retirada — ' . count($rows) . ' protocolos';
+        if (!class_exists('ZipArchive')) {
+            throw new \RuntimeException('A extensão ZIP é necessária para preparar os comprovantes.');
+        }
+        $archive = tempnam(sys_get_temp_dir(), 'delivery-eml-');
+        if ($archive === false) {
+            throw new \RuntimeException('Não foi possível preparar o arquivo dos comprovantes.');
+        }
+        $zip = new \ZipArchive();
+        if ($zip->open($archive, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            @unlink($archive);
+            throw new \RuntimeException('Não foi possível preparar o arquivo dos comprovantes.');
+        }
+        $sections = [];
+        foreach ($rows as $d) {
+            $pdfRelative = (string) ($d['pdf_path'] ?? '');
+            if ($pdfRelative === '' || !is_file(ImageService::absolute($pdfRelative))) {
+                $pdfRelative = PdfService::generate((int) $d['id']);
+            }
+            $pdfAbsolute = ImageService::absolute($pdfRelative);
+            if (!is_file($pdfAbsolute) || !$zip->addFile($pdfAbsolute, (string) $d['code'] . '.pdf')) {
+                $zip->close();
+                @unlink($archive);
+                throw new \RuntimeException('Não foi possível incluir todos os PDFs.');
+            }
+            $items = [];
+            $quantity = 0;
+            foreach ($d['items'] as $item) {
+                $qty = (int) ($item['qty'] ?? 0);
+                $quantity += $qty;
+                $items[] = e((string) ($item['item']['name'] ?? 'Brinde')) . ': ' . $qty;
+            }
+            $sections[] = '<tr>'
+                . '<td style="width:120px;min-width:120px;padding:10px;border:1px solid #dbe3ef;font-weight:700;vertical-align:top;white-space:nowrap">' . e((string) $d['code']) . '</td>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['industry']['name'] ?? '')) . '</td>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['type_label'] ?? '')) . '</td>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . e((string) ($d['received_by_name'] ?? '')) . '</td>'
+                . '<td align="right" style="padding:10px;border:1px solid #dbe3ef;vertical-align:top;font-weight:700">' . $quantity . '</td>'
+                . '<td style="padding:10px;border:1px solid #dbe3ef;vertical-align:top">' . implode('<br>', $items) . '</td></tr>';
+        }
+        if (!$zip->close() || !is_file($archive)) {
+            @unlink($archive);
+            throw new \RuntimeException('Não foi possível finalizar o ZIP.');
+        }
+        $table = '<table role="table" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;font-size:13px;margin-top:16px"><thead><tr style="background:#eff4fb">'
+            . '<th align="left" style="padding:10px;border:1px solid #dbe3ef">Protocolo</th><th align="left" style="padding:10px;border:1px solid #dbe3ef">Indústria</th><th align="left" style="padding:10px;border:1px solid #dbe3ef">Tipo</th><th align="left" style="padding:10px;border:1px solid #dbe3ef">Recebido por</th><th align="right" style="padding:10px;border:1px solid #dbe3ef">Quantidade</th><th align="left" style="padding:10px;border:1px solid #dbe3ef">Itens retirados</th>'
+            . '</tr></thead><tbody>' . implode('', $sections) . '</tbody></table>';
+        $html = Mailer::layout($subject, '<p>Olá,</p><p>Segue ' . (count($rows) === 1 ? 'o comprovante de retirada.' : 'um único e-mail com os comprovantes selecionados.') . ' Os PDFs estão reunidos no arquivo ZIP anexado.</p>' . $table . '<p style="margin-top:16px;color:#4b5563;font-size:12px">Há um PDF correspondente a cada protocolo dentro do arquivo ZIP.</p>');
+        $zipData = file_get_contents($archive);
+        @unlink($archive);
+        if ($zipData === false) {
+            throw new \RuntimeException('Não foi possível ler o ZIP preparado.');
+        }
+        $boundary = '=_delivery_' . bin2hex(random_bytes(12));
+        $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+        $eml = 'To: ' . $recipient . "\r\n"
+            . 'Subject: ' . $encodedSubject . "\r\n"
+            . 'Date: ' . date(DATE_RFC2822) . "\r\n"
+            . 'MIME-Version: 1.0' . "\r\n"
+            . 'Content-Type: multipart/mixed; boundary="' . $boundary . '"' . "\r\n\r\n"
+            . '--' . $boundary . "\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+            . chunk_split(base64_encode($html))
+            . '--' . $boundary . "\r\nContent-Type: application/zip; name=\"comprovantes.zip\"\r\nContent-Disposition: attachment; filename=\"comprovantes.zip\"\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+            . chunk_split(base64_encode($zipData))
+            . '--' . $boundary . "--\r\n";
+        $filename = 'comprovantes-' . ($rows[0]['code'] ?? 'protocolos') . '.eml';
+        return \App\Core\Response::download($eml, $filename, 'message/rfc822');
+    }
+
     public static function resend(int $id): array
     {
         $row = Db::fetch(self::SELECT . ' ' . self::FROM . ' WHERE d.id = ?', [$id]);

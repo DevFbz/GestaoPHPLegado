@@ -185,6 +185,7 @@ return static function (Router $r): void {
     // --- Protocols ----------------------------------------------------
     $r->get('/api/deliveries', [DeliveriesController::class, 'index'], ['perm' => 'deliveries.view']);
     $r->post('/api/deliveries/group-resend', [DeliveriesController::class, 'groupResend'], ['perm' => 'deliveries.view']);
+    $r->get('/api/deliveries/manual-eml', [DeliveriesController::class, 'manualEml'], ['perm' => 'deliveries.view']);
     $r->get("/api/deliveries/{$id}", [DeliveriesController::class, 'show'], ['perm' => 'deliveries.view']);
     $r->get("/api/deliveries/{$id}/pdf", [DeliveriesController::class, 'pdf'], ['perm' => 'deliveries.view']);
     $r->get("/api/deliveries/{$id}/signature", [DeliveriesController::class, 'signature'], ['perm' => 'deliveries.view']);

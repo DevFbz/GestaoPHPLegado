@@ -43,4 +43,11 @@ final class DeliveriesController
     {
         return Response::ok(DeliveryService::resendGroup($request->input('ids', [])));
     }
+
+    public function manualEml(Request $request): Response
+    {
+        $rawIds = (string) $request->query('ids', '');
+        $ids = array_values(array_filter(array_map('intval', explode(',', $rawIds)), static fn (int $id): bool => $id > 0));
+        return DeliveryService::manualEml($ids);
+    }
 }
