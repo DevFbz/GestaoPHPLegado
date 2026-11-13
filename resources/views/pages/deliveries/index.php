@@ -26,9 +26,12 @@
           <div class="small text-muted" x-show="group.industryNames" x-text="'Indústrias: ' + group.industryNames"></div>
           <div class="small text-muted" x-text="group.rows.length + (group.rows.length === 1 ? ' protocolo' : ' protocolos')"></div>
         </div>
-        <button class="btn btn-primary btn-sm" type="button" x-show="group.email && group.rows.length > 1" @click="sendGroup(group)" :disabled="sendingKey === group.key || group.rows.some(function (row) { return sendingKey === 'protocol-' + row.id; })">
-          <span x-text="sendingKey === group.key ? 'Enviando…' : 'Enviar e-mail (manualmente)'"></span>
-        </button>
+        <div class="d-flex flex-wrap gap-2" x-show="group.email && group.rows.length > 1">
+          <a class="btn btn-outline-primary btn-sm" :href="manualGroupHref(group)" target="_blank" rel="noopener" @click="manualOpen(group, $event)">Enviar manualmente</a>
+          <button class="btn btn-primary btn-sm" type="button" @click="sendGroup(group)" :disabled="sendingKey === group.key || group.rows.some(function (row) { return sendingKey === 'protocol-' + row.id; })">
+            <span x-text="sendingKey === group.key ? 'Enviando…' : 'Enviar automático'"></span>
+          </button>
+        </div>
       </div>
       <div class="list-group list-group-flush">
         <template x-for="d in group.rows" :key="d.id">
@@ -47,8 +50,11 @@
                   'text-bg-secondary': !['sent', 'queued', 'failed'].includes(d.email_status?.key)
                 }" x-text="d.email_status?.label || 'Não enviado'"></span>
                 <span class="small text-muted" x-text="Api.fmt.datetime(d.created_at)"></span>
-                <button class="btn btn-outline-primary btn-sm" type="button" x-show="group.rows.length === 1" @click="sendSingle(d)" :disabled="sendingKey === ('protocol-' + d.id) || sendingKey === group.key">
-                  <span x-text="sendingKey === ('protocol-' + d.id) ? 'Enviando…' : 'Enviar e-mail (manualmente)'"></span>
+                <template x-if="group.rows.length === 1">
+                  <a class="btn btn-outline-primary btn-sm" :href="manualSingleHref(d)" target="_blank" rel="noopener" @click="manualOpen(d, $event)">Enviar manualmente</a>
+                </template>
+                <button class="btn btn-primary btn-sm" type="button" x-show="group.rows.length === 1" @click="sendSingle(d)" :disabled="sendingKey === ('protocol-' + d.id) || sendingKey === group.key">
+                  <span x-text="sendingKey === ('protocol-' + d.id) ? 'Enviando…' : 'Enviar automático'"></span>
                 </button>
               </div>
             </div>
@@ -96,6 +102,49 @@ function protIndex() {
       } catch (e) {
         this.loadError = e.message || 'Não foi possível carregar os comprovantes.';
       }
+    },
+    manualMailto(email, subject, body) {
+      const to = String(email || '').trim();
+      if (!to) return '#';
+      return 'mailto:' + encodeURIComponent(to)
+        + '?subject=' + encodeURIComponent(subject)
+        + '&body=' + encodeURIComponent(body);
+    },
+    manualSingleHref(row) {
+      const industry = row.industry?.name || 'Não informada';
+      const subject = 'Comprovante de retirada — ' + (row.code || 'protocolo');
+      const body = [
+        'Olá,',
+        '',
+        'Segue o comprovante de retirada do protocolo ' + (row.code || 'não informado') + '.',
+        'Indústria: ' + industry,
+        'Tipo: ' + (row.type_label || 'Não informado'),
+        'Recebido por: ' + (row.received_by_name || 'Não informado'),
+        '',
+        'O PDF do comprovante pode ser anexado antes do envio.',
+      ].join('\n');
+      return this.manualMailto(row.received_by_email, subject, body);
+    },
+    manualGroupHref(group) {
+      const subject = 'Comprovantes de retirada — ' + group.rows.length + ' protocolos';
+      const lines = ['Olá,', '', 'Segue a relação de comprovantes de retirada:', ''];
+      group.rows.forEach(function (row) {
+        lines.push(
+          'Protocolo: ' + (row.code || 'não informado'),
+          'Indústria: ' + (row.industry?.name || 'Não informada'),
+          'Tipo: ' + (row.type_label || 'Não informado'),
+          'Recebido por: ' + (row.received_by_name || 'Não informado'),
+          ''
+        );
+      });
+      lines.push('Os PDFs dos comprovantes podem ser anexados antes do envio.');
+      return this.manualMailto(group.email, subject, lines.join('\n'));
+    },
+    manualOpen(target, event) {
+      const email = String(target.email || target.received_by_email || '').trim();
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+      event.preventDefault();
+      UI.toast('Não há um e-mail válido para abrir o Outlook.', 'err');
     },
     async sendSingle(row) {
       const key = 'protocol-' + row.id;

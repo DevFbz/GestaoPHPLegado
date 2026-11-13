@@ -60,8 +60,11 @@ expectContains('resources/views/pages/deliveries/index.php', "'Não enviado'", '
 expectContains('resources/views/pages/deliveries/show.php', 'Enviar email automático', 'Detalhe usa o nome correto para reenvio automático');
 expectContains('resources/views/pages/deliveries/show.php', 'email_status', 'Detalhe do protocolo exibe status do e-mail');
 expectContains('resources/views/pages/deliveries/index.php', 'groupedRows()', 'Comprovantes agrupa protocolos por e-mail');
-expectContains('resources/views/pages/deliveries/index.php', 'Enviar e-mail (manualmente)', 'Comprovantes oferece envio manual para qualquer protocolo');
-expectContains('resources/views/pages/deliveries/index.php', 'sendSingle(d)', 'Comprovantes permite envio manual individual');
+expectContains('resources/views/pages/deliveries/index.php', 'Enviar manualmente', 'Comprovantes oferece abertura manual do Outlook');
+expectContains('resources/views/pages/deliveries/index.php', 'Enviar automático', 'Comprovantes mantém envio automático separado');
+expectContains('resources/views/pages/deliveries/index.php', 'manualSingleHref(d)', 'Comprovantes prepara e-mail manual individual');
+expectContains('resources/views/pages/deliveries/index.php', 'manualGroupHref(group)', 'Comprovantes prepara e-mail manual agrupado');
+expectContains('resources/views/pages/deliveries/index.php', 'mailto:', 'Comprovantes usa Outlook via mailto');
 expectContains('resources/views/pages/deliveries/index.php', 'loadError', 'Comprovantes exibe erro de carregamento');
 expectContains('resources/views/pages/deliveries/index.php', 'group.rows.forEach', 'Comprovantes atualiza o status visual de todos os protocolos agrupados');
 expectContains('app/routes.php', '/api/deliveries/group-resend', 'API possui rota de reenvio agrupado');
