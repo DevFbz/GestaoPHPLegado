@@ -58,7 +58,12 @@ final class DeliveryService
         }
         $sqlWhere = $where ? ' WHERE ' . implode(' AND ', $where) : '';
         [$rows, $meta] = Paginator::run($request, self::SELECT, self::FROM . $sqlWhere, $params, 'ORDER BY d.created_at DESC, d.id DESC');
-        return [array_map([self::class, 'present'], $rows), $meta];
+        $presented = array_map(static function (array $row): array {
+            $out = self::present($row);
+            $out['items'] = self::items((int) $row['id']);
+            return $out;
+        }, $rows);
+        return [$presented, $meta];
     }
 
     public static function find(int $id): array

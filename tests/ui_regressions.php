@@ -71,6 +71,7 @@ expectContains('resources/views/pages/deliveries/index.php', 'mailto:', 'Comprov
 expectContains('resources/views/pages/deliveries/index.php', 'loadError', 'Comprovantes exibe erro de carregamento');
 expectContains('resources/views/pages/deliveries/index.php', 'group.rows.forEach', 'Comprovantes atualiza o status visual de todos os protocolos agrupados');
 expectContains('app/routes.php', '/api/deliveries/group-resend', 'API possui rota de reenvio agrupado');
+expectContains('app/Services/DeliveryService.php', "'items'] = self::items", 'Lista de comprovantes entrega os brindes de cada protocolo');
 expectContains('app/Services/DeliveryService.php', 'resendGroup', 'Serviço monta reenvio agrupado');
 expectContains('app/Services/DeliveryService.php', 'Auth::industryId()', 'Reenvio individual e agrupado respeitam o escopo da indústria');
 expectContains('app/Services/DeliveryService.php', 'delivery-group-ids:', 'Envio agrupado vincula a notificação todos os protocolos');
