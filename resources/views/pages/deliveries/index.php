@@ -1,4 +1,6 @@
-<?php ob_start(); ?>
+<?php
+$automaticMailEnabled = strtolower((string) \App\Core\Config::get('mail.driver', 'log')) === 'smtp';
+ob_start(); ?>
 <div x-data="protIndex()" x-init="load()">
   <header class="page-header">
     <div><h2>Entregas e comprovantes</h2><p>Agrupe protocolos pelo mesmo e-mail e envie todos em uma única mensagem.</p></div>
@@ -28,9 +30,11 @@
         </div>
         <div class="d-flex flex-wrap gap-2" x-show="group.email && group.rows.length > 1">
           <a class="btn btn-outline-primary btn-sm" :href="manualGroupHref(group)" target="_blank" rel="noopener" @click="manualOpen(group, $event)">Enviar manualmente</a>
+          <?php if ($automaticMailEnabled): ?>
           <button class="btn btn-primary btn-sm" type="button" @click="sendGroup(group)" :disabled="sendingKey === group.key || group.rows.some(function (row) { return sendingKey === 'protocol-' + row.id; })">
             <span x-text="sendingKey === group.key ? 'Enviando…' : 'Enviar automático'"></span>
           </button>
+          <?php endif; ?>
         </div>
       </div>
       <div class="list-group list-group-flush">
@@ -53,9 +57,11 @@
                 <template x-if="group.rows.length === 1">
                   <a class="btn btn-outline-primary btn-sm" :href="manualSingleHref(d)" target="_blank" rel="noopener" @click="manualOpen(d, $event)">Enviar manualmente</a>
                 </template>
+                <?php if ($automaticMailEnabled): ?>
                 <button class="btn btn-primary btn-sm" type="button" x-show="group.rows.length === 1" @click="sendSingle(d)" :disabled="sendingKey === ('protocol-' + d.id) || sendingKey === group.key">
                   <span x-text="sendingKey === ('protocol-' + d.id) ? 'Enviando…' : 'Enviar automático'"></span>
                 </button>
+                <?php endif; ?>
               </div>
             </div>
           </div>
