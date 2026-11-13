@@ -365,21 +365,42 @@ final class DeliveryService
             throw new \RuntimeException('Não foi possível preparar o arquivo ZIP.');
         }
         $codes = [];
-        foreach ($ids as $id) {
-            $row = Db::fetch('SELECT id, code, industry_id FROM deliveries WHERE id = ?', [$id]);
-            if ($row === null) {
-                $zip->close();
-                @unlink($archive);
-                throw HttpException::notFound('Um dos protocolos selecionados não foi encontrado.');
+        if (count($ids) > 1) {
+            foreach ($ids as $id) {
+                $row = Db::fetch('SELECT id, code, industry_id FROM deliveries WHERE id = ?', [$id]);
+                if ($row === null) {
+                    $zip->close();
+                    @unlink($archive);
+                    throw HttpException::notFound('Um dos protocolos selecionados não foi encontrado.');
+                }
+                self::assertIndustryAccess($row);
+                $codes[] = (string) $row['code'];
             }
-            self::assertIndustryAccess($row);
-            $pdf = self::pdfPath($id);
-            $code = (string) $row['code'];
-            $codes[] = $code;
-            if (!$zip->addFile($pdf, $code . '.pdf')) {
+            $first = self::find($ids[0]);
+            $label = trim((string) ($first['industry']['name'] ?? 'Grupo') . ' - ' . (string) ($first['received_by_name'] ?? 'Retiradas'));
+            $label = preg_replace('/[^\\pL\\pN._-]+/u', '-', $label) ?: 'comprovantes-consolidados';
+            if (!$zip->addFromString($label . '.pdf', PdfService::combined($ids))) {
                 $zip->close();
                 @unlink($archive);
-                throw new \RuntimeException('Não foi possível incluir todos os PDFs no ZIP.');
+                throw new \RuntimeException('Não foi possível incluir o PDF consolidado no ZIP.');
+            }
+        } else {
+            foreach ($ids as $id) {
+                $row = Db::fetch('SELECT id, code, industry_id FROM deliveries WHERE id = ?', [$id]);
+                if ($row === null) {
+                    $zip->close();
+                    @unlink($archive);
+                    throw HttpException::notFound('Um dos protocolos selecionados não foi encontrado.');
+                }
+                self::assertIndustryAccess($row);
+                $pdf = self::pdfPath($id);
+                $code = (string) $row['code'];
+                $codes[] = $code;
+                if (!$zip->addFile($pdf, $code . '.pdf')) {
+                    $zip->close();
+                    @unlink($archive);
+                    throw new \RuntimeException('Não foi possível incluir todos os PDFs no ZIP.');
+                }
             }
         }
         if (!$zip->close() || !is_file($archive)) {

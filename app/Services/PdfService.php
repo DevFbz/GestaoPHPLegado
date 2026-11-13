@@ -128,6 +128,64 @@ HTML;
         return $relative;
     }
 
+    /** Renders several delivery protocols into one consolidated PDF. */
+    public static function combined(array $deliveryIds): string
+    {
+        $deliveries = [];
+        foreach ($deliveryIds as $id) {
+            $deliveries[] = DeliveryService::find((int) $id);
+        }
+        if ($deliveries === []) {
+            throw new \InvalidArgumentException('Nenhum protocolo informado.');
+        }
+        $brand = SettingsService::branding();
+        $logoHtml = '';
+        $logoPath = SettingsService::get('logo_path');
+        if ($logoPath && is_file(ImageService::absolute($logoPath))) {
+            $logoHtml = '<img src="' . self::dataUri(ImageService::absolute($logoPath), 'image/png') . '" style="height:42px">';
+        }
+        $color = e($brand['primary_color']);
+        $company = e($brand['company_name']);
+        $sections = '';
+        foreach ($deliveries as $d) {
+            $rows = '';
+            $totalQty = 0;
+            foreach ($d['items'] as $it) {
+                $qty = (int) ($it['qty_withdrawn'] ?? $it['qty'] ?? 0);
+                $remaining = (int) ($it['remaining'] ?? $it['balance_after'] ?? 0);
+                $totalQty += $qty;
+                $rows .= '<tr><td>' . e((string) ($it['item']['code'] ?? '')) . '</td><td>' . e((string) ($it['item']['name'] ?? 'Brinde')) . '</td>'
+                    . '<td style="text-align:right">' . $qty . '</td><td style="text-align:right">' . $remaining . '</td></tr>';
+            }
+            $sections .= '<div class="protocol">'
+                . '<h2>' . e((string) $d['code']) . '</h2>'
+                . '<p class="muted">' . e((string) $d['type_label']) . ' · ' . e((string) $d['created_at']) . '</p>'
+                . '<p><b>Indústria:</b> ' . e((string) ($d['industry']['name'] ?? '—'))
+                . '<br><b>Retirado por:</b> ' . e((string) ($d['received_by_name'] ?? '—'))
+                . '<br><b>E-mail:</b> ' . e((string) ($d['received_by_email'] ?? '—')) . '</p>'
+                . '<table><tr><th>Código</th><th>Brinde</th><th style="text-align:right">Quantidade retirada</th><th style="text-align:right">Saldo restante</th></tr>'
+                . $rows . '<tr><td colspan="2"><b>Total desta retirada</b></td><td style="text-align:right"><b>' . $totalQty . '</b></td><td></td></tr></table>'
+                . '</div>';
+        }
+        $html = '<!doctype html><html><head><meta charset="utf-8"><style>'
+            . 'body{font-family:DejaVu Sans,sans-serif;font-size:12px;color:#1f2937;margin:24px}'
+            . 'h1{font-size:19px;margin:0 0 12px}h2{font-size:16px;margin:0 0 4px}'
+            . 'table{width:100%;border-collapse:collapse;margin-top:8px}th,td{border-bottom:1px solid #e5e7eb;padding:6px 4px;text-align:left}th{background:#f3f4f6;font-size:11px}'
+            . '.hdr td{border:0;color:#fff;padding:12px 8px;vertical-align:middle}.muted{color:#6b7280;font-size:11px}.protocol{border-top:2px solid #e5e7eb;padding-top:14px;margin-top:18px;page-break-inside:avoid}'
+            . '</style></head><body><table class="hdr" width="100%" style="background:' . $color . '"><tr><td>' . $logoHtml . '</td><td style="text-align:right"><div>' . $company . '</div><div style="font-size:11px;opacity:.85">COMPROVANTES CONSOLIDADOS DE RETIRADA</div></td></tr></table>'
+            . '<h1>Comprovantes consolidados</h1>' . $sections . '</body></html>';
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'DejaVu Sans');
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html, 'UTF-8');
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->addInfo('Title', 'Comprovantes consolidados');
+        $dompdf->addInfo('Creator', 'Controle de Brindes');
+        $dompdf->render();
+        return $dompdf->output();
+    }
+
     private static function dataUri(string $path, string $mime): string
     {
         return 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($path));

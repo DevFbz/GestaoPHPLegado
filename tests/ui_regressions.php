@@ -84,7 +84,9 @@ expectContains('app/Services/DeliveryService.php', 'Quantidade', 'E-mail agrupad
 expectContains('app/Services/DeliveryService.php', 'Itens retirados', 'E-mail agrupado apresenta os itens em tabela');
 expectContains('app/Services/DeliveryService.php', 'precisam ter o mesmo e-mail', 'Reenvio agrupado valida o destinatário único');
 expectContains('resources/views/pages/deliveries/index.php', 'const key = email ? email', 'Comprovantes agrupa somente pelo e-mail');
+expectContains('app/Services/DeliveryService.php', 'PdfService::combined($ids)', 'Grupo baixa um único PDF consolidado com todas as retiradas');
 expectContains('app/Services/DeliveryService.php', 'ZipArchive', 'Reenvio agrupado anexa os PDFs em um ZIP');
+expectContains('app/Services/PdfService.php', 'Comprovantes consolidados', 'PDF consolidado identifica todas as retiradas do grupo');
 expectContains('app/Services/DeliveryService.php', 'sort($ids, SORT_NUMERIC)', 'Reenvio agrupado deduplica independentemente da ordem');
 expectContains('app/Services/DeliveryService.php', 'attachment_path FROM notifications', 'Reenvio agrupado confirma o status e anexo persistidos');
 expectContains('app/Services/DeliveryService.php', "'-retry-'", 'Reenvio agrupado permite nova tentativa após falha');
